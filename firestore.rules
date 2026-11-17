@@ -1,0 +1,816 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net catch-all: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Hardened Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedEmail() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.size() >= 3
+        && request.auth.token.email.size() <= 200
+        && request.auth.token.email_verified == true;
+    }
+
+    function userEmailLower() {
+      return request.auth.token.email.lower();
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedEmail() && userEmailLower() == 'oktafmbul0@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin()
+        || (isVerifiedEmail() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isAuthorizedWulanFromConfig() {
+      return isVerifiedEmail()
+        && exists(/databases/$(database)/documents/config/access)
+        && get(/databases/$(database)/documents/config/access).data.wishlistPrivacyMode == 'couple-only'
+        && get(/databases/$(database)/documents/config/access).data.wulanEmail is string
+        && get(/databases/$(database)/documents/config/access).data.wulanEmail.size() > 0
+        && userEmailLower() == get(/databases/$(database)/documents/config/access).data.wulanEmail.lower();
+    }
+
+    function isCoupleMember() {
+      return isAdmin() || isAuthorizedWulanFromConfig();
+    }
+
+    // --- Entity Validation Blueprints ---
+    function isValidAdminUser(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'role', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid == userId
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.role == 'admin'
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAccessConfig(data, configId) {
+      return configId == 'access'
+        && data.keys().hasAll([
+          'configId',
+          'adminEmail',
+          'oktafEmail',
+          'wulanEmail',
+          'wishlistPrivacyMode',
+          'updatedBy',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'configId',
+          'adminEmail',
+          'oktafEmail',
+          'wulanEmail',
+          'wishlistPrivacyMode',
+          'updatedBy',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.configId == 'access'
+        && data.adminEmail is string && data.adminEmail.size() >= 5 && data.adminEmail.size() <= 200
+        && data.oktafEmail is string && data.oktafEmail.size() >= 5 && data.oktafEmail.size() <= 200
+        && data.wulanEmail is string && data.wulanEmail.size() <= 200
+        && data.wishlistPrivacyMode in ['couple-only', 'admin-only']
+        && data.updatedBy is string && data.updatedBy == request.auth.uid
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSiteContentSection(data, sectionId) {
+      return sectionId in ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl']
+        && data.keys().hasAll(['sectionId', 'payload', 'updatedBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['sectionId', 'payload', 'updatedBy', 'createdAt', 'updatedAt'])
+        && data.sectionId == sectionId
+        && data.payload is map
+        && data.updatedBy is string && data.updatedBy == request.auth.uid
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVoiceEntry(data, voiceId) {
+      return data.keys().hasAll([
+          'id',
+          'name',
+          'flowerType',
+          'audioUrl',
+          'audioFileName',
+          'order',
+          'permissionConfirmed',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'name',
+          'flowerType',
+          'audioUrl',
+          'audioFileName',
+          'photoUrl',
+          'message',
+          'order',
+          'permissionConfirmed',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == voiceId && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.flowerType in [
+          'sakura',
+          'sunflower',
+          'daisy',
+          'lavender',
+          'rose',
+          'forgetmenot',
+          'tulip',
+          'lily',
+          'peony',
+          'orchid'
+        ]
+        && data.audioUrl is string && data.audioUrl.size() >= 1 && data.audioUrl.size() <= 1000
+        && data.audioFileName is string && data.audioFileName.size() <= 200
+        && (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 1000))
+        && (!('message' in data) || (data.message is string && data.message.size() <= 1500))
+        && data.order is number && data.order >= 1 && data.order <= 1000
+        && data.permissionConfirmed is bool
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVinylTrack(data, trackId) {
+      return data.keys().hasAll([
+          'id',
+          'youtubeUrl',
+          'youtubeVideoId',
+          'title',
+          'order',
+          'isPublished',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'youtubeUrl',
+          'youtubeVideoId',
+          'title',
+          'artist',
+          'thumbnailUrl',
+          'order',
+          'isPublished',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == trackId && isValidId(data.id)
+        && data.youtubeUrl is string && data.youtubeUrl.size() >= 1 && data.youtubeUrl.size() <= 500
+        && data.youtubeVideoId is string && data.youtubeVideoId.matches('^[a-zA-Z0-9_-]{11}$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && (!('artist' in data) || (data.artist is string && data.artist.size() <= 120))
+        && (!('thumbnailUrl' in data) || (data.thumbnailUrl is string && data.thumbnailUrl.size() <= 1000))
+        && data.order is number && data.order >= 1 && data.order <= 500
+        && data.isPublished is bool
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWishlistEntry(data, wishId) {
+      return data.keys().hasAll([
+          'id',
+          'title',
+          'description',
+          'category',
+          'creatorUid',
+          'creatorEmail',
+          'creatorRole',
+          'creatorName',
+          'status',
+          'photos',
+          'completionStory',
+          'allowedEmails',
+          'visibility',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'title',
+          'description',
+          'category',
+          'creatorUid',
+          'creatorEmail',
+          'creatorRole',
+          'creatorName',
+          'targetDate',
+          'status',
+          'photos',
+          'completionStory',
+          'completedAt',
+          'allowedEmails',
+          'visibility',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == wishId && isValidId(data.id)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.description is string && data.description.size() <= 2000
+        && data.category in ['your', 'her', 'our']
+        && data.creatorUid is string && data.creatorUid.size() >= 1 && data.creatorUid.size() <= 128
+        && data.creatorEmail is string && data.creatorEmail.size() >= 3 && data.creatorEmail.size() <= 200
+        && data.creatorRole in ['oktaf', 'wulan']
+        && data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 60
+        && (!('targetDate' in data) || (data.targetDate is string && data.targetDate.size() <= 40))
+        && data.status in ['dreaming', 'planned', 'in_progress', 'completed']
+        && data.photos is list && data.photos.size() <= 6
+        && (data.photos.size() == 0 || (data.photos[0] is string && data.photos[0].size() <= 1000))
+        && data.completionStory is string && data.completionStory.size() <= 3000
+        && (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 64))
+        && data.allowedEmails is list && data.allowedEmails.size() >= 1 && data.allowedEmails.size() <= 4
+        && (data.allowedEmails[0] is string && data.allowedEmails[0].size() <= 200)
+        && data.visibility in ['public', 'private', 'shared', 'couple']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPostcardEnvelope(data, postcardId) {
+      return data.keys().hasAll([
+          'id',
+          'title',
+          'senderUid',
+          'senderEmail',
+          'senderRole',
+          'senderName',
+          'recipient',
+          'visibility',
+          'unlockAt',
+          'unlockDateLabel',
+          'createdDateLabel',
+          'location',
+          'stampStyle',
+          'designTheme',
+          'isOpened',
+          'order',
+          'allowedEmails',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'title',
+          'senderUid',
+          'senderEmail',
+          'senderRole',
+          'senderName',
+          'recipient',
+          'visibility',
+          'unlockAt',
+          'unlockDateLabel',
+          'createdDateLabel',
+          'location',
+          'stampStyle',
+          'designTheme',
+          'isOpened',
+          'openedAt',
+          'openedByUid',
+          'order',
+          'allowedEmails',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == postcardId && isValidId(data.id)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128
+        && data.senderEmail is string && data.senderEmail.size() >= 3 && data.senderEmail.size() <= 200
+        && data.senderRole in ['oktaf', 'wulan']
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60
+        && data.recipient in ['oktaf', 'wulan', 'both']
+        && data.visibility in ['public', 'private', 'shared']
+        && data.unlockAt is timestamp
+        && data.unlockDateLabel is string && data.unlockDateLabel.size() <= 80
+        && data.createdDateLabel is string && data.createdDateLabel.size() <= 80
+        && data.location is string && data.location.size() <= 120
+        && data.stampStyle in ['par_avion', 'future_mail', 'wax_heart', 'cherry_blossom']
+        && data.designTheme in ['vintage_cream', 'botanical_sage', 'rose_parchment', 'airmail_classic']
+        && data.isOpened is bool
+        && (!('openedAt' in data) || data.openedAt is timestamp)
+        && (!('openedByUid' in data) || (data.openedByUid is string && data.openedByUid.size() <= 128))
+        && data.order is number && data.order >= 1 && data.order <= 500
+        && data.allowedEmails is list && data.allowedEmails.size() >= 1 && data.allowedEmails.size() <= 4
+        && (data.allowedEmails[0] is string && data.allowedEmails[0].size() <= 200)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPostcardSecret(data, postcardId) {
+      return data.keys().hasAll(['postcardId', 'message', 'photoUrl', 'ownerUid', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['postcardId', 'message', 'photoUrl', 'ownerUid', 'createdAt', 'updatedAt'])
+        && data.postcardId is string && data.postcardId == postcardId && isValidId(data.postcardId)
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 4000
+        && data.photoUrl is string && data.photoUrl.size() <= 1000
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function canReadPostcardSecretDoc(postcardId) {
+      let parentPath = /databases/$(database)/documents/postcards/$(postcardId);
+      let env = get(parentPath).data;
+      return exists(parentPath)
+        && (
+          (isCoupleMember() && env.senderUid == request.auth.uid)
+          || (env.visibility == 'public' && request.time >= env.unlockAt)
+          || (
+            isCoupleMember()
+            && request.time >= env.unlockAt
+            && (isAdmin() || userEmailLower() in env.allowedEmails)
+            && (env.recipient == 'both' || (env.recipient == 'wulan' && !isAdmin()) || (env.recipient == 'oktaf' && isAdmin()))
+          )
+        );
+    }
+
+    function canUpdatePostcardSecretDoc(postcardId) {
+      let parentPath = /databases/$(database)/documents/postcards/$(postcardId);
+      let env = get(parentPath).data;
+      return exists(parentPath)
+        && isCoupleMember()
+        && (
+          existing().ownerUid == request.auth.uid
+          || (isAdmin() && (env.recipient != 'oktaf' || request.time >= env.unlockAt))
+          || (env.visibility == 'shared' && request.time >= env.unlockAt)
+        );
+    }
+
+    function isValidMediaAssetMeta(data, assetId) {
+      return data.keys().hasAll([
+          'id',
+          'url',
+          'storagePath',
+          'filename',
+          'category',
+          'kind',
+          'sizeBytes',
+          'uploaderUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'url',
+          'storagePath',
+          'filename',
+          'category',
+          'kind',
+          'sizeBytes',
+          'uploaderUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == assetId && isValidId(data.id)
+        && data.url is string && data.url.size() >= 1 && data.url.size() <= 1200
+        && data.storagePath is string && data.storagePath.size() >= 1 && data.storagePath.size() <= 400
+        && data.filename is string && data.filename.size() >= 1 && data.filename.size() <= 200
+        && data.category in ['friends-audio', 'images', 'audio', 'videos', 'wishlist', 'postcards']
+        && data.kind in ['image', 'audio', 'video']
+        && data.sizeBytes is number && data.sizeBytes >= 0 && data.sizeBytes <= 60000000
+        && data.uploaderUid is string && data.uploaderUid == request.auth.uid
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSecretNote(data, noteId) {
+      return data.keys().hasAll([
+          'id',
+          'title',
+          'hint',
+          'recipient',
+          'message',
+          'signature',
+          'pageNumber',
+          'enabled',
+          'sealColor',
+          'stampText',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'title',
+          'hint',
+          'recipient',
+          'message',
+          'signature',
+          'pageNumber',
+          'enabled',
+          'sealColor',
+          'stampText',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == noteId && isValidId(data.id)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.hint is string && data.hint.size() >= 1 && data.hint.size() <= 80
+        && data.recipient is string && data.recipient.size() >= 1 && data.recipient.size() <= 120
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 3000
+        && data.signature is string && data.signature.size() >= 1 && data.signature.size() <= 160
+        && data.pageNumber is number && data.pageNumber >= 1 && data.pageNumber <= 17
+        && data.enabled is bool
+        && data.sealColor in ['#A6533B', '#455342', '#743D4A', '#C4A574']
+        && data.stampText is string && data.stampText.size() >= 1 && data.stampText.size() <= 40
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Admins registry
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && isVerifiedEmail() && (request.auth.uid == userId || isAdmin());
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isBootstrappedAdmin()
+        && isValidAdminUser(incoming(), userId)
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isBootstrappedAdmin()
+        && isValidAdminUser(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 2. Private couple & admin authorization config
+    match /config/{configId} {
+      allow get: if isValidId(configId)
+        && (isAdmin() || (isVerifiedEmail() && existing().wulanEmail is string && existing().wulanEmail.size() > 0 && userEmailLower() == existing().wulanEmail.lower()));
+      allow list: if false;
+      allow create: if isValidId(configId)
+        && isAdmin()
+        && isValidAccessConfig(incoming(), configId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(configId)
+        && isValidAccessConfig(incoming(), configId)
+        && isAdmin()
+        && incoming().configId == existing().configId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['wulanEmail', 'wishlistPrivacyMode', 'updatedBy', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 3. Partitioned public site content sections
+    match /siteContent/{sectionId} {
+      allow get: if isValidId(sectionId);
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(sectionId)
+        && isAdmin()
+        && isValidSiteContentSection(incoming(), sectionId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(sectionId)
+        && isValidSiteContentSection(incoming(), sectionId)
+        && isAdmin()
+        && incoming().sectionId == existing().sectionId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['payload', 'updatedBy', 'updatedAt']);
+      allow delete: if isValidId(sectionId) && isAdmin();
+    }
+
+    // 4. Voices of Love friend entries
+    match /voices/{voiceId} {
+      allow get: if isValidId(voiceId) && (existing().permissionConfirmed == true || isAdmin());
+      allow list: if resource.data.permissionConfirmed == true || isBootstrappedAdmin();
+      allow create: if isValidId(voiceId)
+        && isAdmin()
+        && isValidVoiceEntry(incoming(), voiceId)
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(voiceId)
+        && isValidVoiceEntry(incoming(), voiceId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name',
+          'flowerType',
+          'audioUrl',
+          'audioFileName',
+          'photoUrl',
+          'message',
+          'order',
+          'permissionConfirmed',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(voiceId) && isAdmin();
+    }
+
+    // 5. Vinyl Player YouTube playlist
+    match /vinylPlaylist/{trackId} {
+      allow get: if isValidId(trackId) && (existing().isPublished == true || isAdmin());
+      allow list: if resource.data.isPublished == true || isBootstrappedAdmin();
+      allow create: if isValidId(trackId)
+        && isAdmin()
+        && isValidVinylTrack(incoming(), trackId)
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(trackId)
+        && isValidVinylTrack(incoming(), trackId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'youtubeUrl',
+          'youtubeVideoId',
+          'title',
+          'artist',
+          'thumbnailUrl',
+          'order',
+          'isPublished',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(trackId) && isAdmin();
+    }
+
+    // 6. Our Future Wishlist (supports public, private, shared, and legacy couple entries)
+    match /wishlist/{wishId} {
+      allow get: if isValidId(wishId)
+        && (
+          existing().visibility == 'public'
+          || isAdmin()
+          || (isVerifiedEmail() && existing().allowedEmails is list && userEmailLower() in existing().allowedEmails && isCoupleMember())
+        );
+      allow list: if resource.data.visibility == 'public'
+        || (
+          isVerifiedEmail()
+          && (
+            userEmailLower() == 'oktafmbul0@gmail.com'
+            || (
+              resource.data.allowedEmails is list
+              && resource.data.allowedEmails.size() <= 4
+              && userEmailLower() in resource.data.allowedEmails
+            )
+          )
+        );
+      allow create: if isValidId(wishId)
+        && isCoupleMember()
+        && isValidWishlistEntry(incoming(), wishId)
+        && incoming().creatorUid == request.auth.uid
+        && incoming().creatorEmail == userEmailLower()
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(wishId)
+        && isValidWishlistEntry(incoming(), wishId)
+        && isCoupleMember()
+        && incoming().id == existing().id
+        && incoming().creatorUid == existing().creatorUid
+        && incoming().creatorEmail == existing().creatorEmail
+        && incoming().creatorRole == existing().creatorRole
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            existing().status != 'completed'
+            && (existing().creatorUid == request.auth.uid || existing().category == 'our' || existing().visibility == 'shared')
+            && (incoming().visibility == existing().visibility || existing().creatorUid == request.auth.uid)
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'title',
+              'description',
+              'category',
+              'targetDate',
+              'status',
+              'photos',
+              'completionStory',
+              'completedAt',
+              'visibility',
+              'updatedAt'
+            ])
+          )
+          || (
+            existing().status == 'completed'
+            && incoming().status == 'completed'
+            && incoming().visibility == existing().visibility
+            && (existing().creatorUid == request.auth.uid || existing().category == 'our' || existing().visibility == 'shared')
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'photos',
+              'completionStory',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(wishId)
+        && (
+          isAdmin()
+          || (isCoupleMember() && (existing().creatorUid == request.auth.uid || existing().category == 'our' || existing().visibility == 'shared'))
+        );
+    }
+
+    // 7. Postcards From The Future (Envelope metadata only — time-locked secret resides in /secret/content)
+    match /postcards/{postcardId} {
+      allow get: if isValidId(postcardId)
+        && (
+          existing().visibility == 'public'
+          || isAdmin()
+          || (isVerifiedEmail() && existing().allowedEmails is list && userEmailLower() in existing().allowedEmails && isCoupleMember())
+        );
+      allow list: if resource.data.visibility == 'public'
+        || (
+          isVerifiedEmail()
+          && (
+            userEmailLower() == 'oktafmbul0@gmail.com'
+            || (
+              resource.data.allowedEmails is list
+              && resource.data.allowedEmails.size() <= 4
+              && userEmailLower() in resource.data.allowedEmails
+            )
+          )
+        );
+      allow create: if isValidId(postcardId)
+        && isCoupleMember()
+        && isValidPostcardEnvelope(incoming(), postcardId)
+        && incoming().senderUid == request.auth.uid
+        && incoming().senderEmail == userEmailLower()
+        && incoming().isOpened == false
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/postcards/$(postcardId)/secret/content);
+      allow update: if isValidId(postcardId)
+        && isValidPostcardEnvelope(incoming(), postcardId)
+        && incoming().id == existing().id
+        && incoming().senderUid == existing().senderUid
+        && incoming().senderEmail == existing().senderEmail
+        && incoming().senderRole == existing().senderRole
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action A: Open envelope ONLY when server request.time >= unlockAt
+          (
+            isCoupleMember()
+            && request.time >= existing().unlockAt
+            && (existing().visibility == 'public' || isAdmin() || userEmailLower() in existing().allowedEmails)
+            && (existing().recipient == 'both' || (existing().recipient == 'wulan' && !isAdmin()) || (existing().recipient == 'oktaf' && isAdmin()))
+            && incoming().isOpened == true
+            && incoming().openedAt == request.time
+            && incoming().openedByUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['isOpened', 'openedAt', 'openedByUid', 'updatedAt'])
+          )
+          // Action B: Admin management / reorder / unlock date adjustments (cannot spoof opened state before unlockAt)
+          || (
+            isAdmin()
+            && (!incoming().diff(existing()).affectedKeys().hasAny(['isOpened', 'openedAt', 'openedByUid']) || request.time >= existing().unlockAt)
+          )
+          // Action C: Sender or shared partner metadata edits without touching opened state
+          || (
+            isCoupleMember()
+            && (existing().senderUid == request.auth.uid || existing().visibility == 'shared')
+            && !incoming().diff(existing()).affectedKeys().hasAny(['isOpened', 'openedAt', 'openedByUid'])
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'title',
+              'recipient',
+              'visibility',
+              'unlockAt',
+              'unlockDateLabel',
+              'location',
+              'stampStyle',
+              'designTheme',
+              'order',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(postcardId)
+        && (
+          isAdmin()
+          || (isCoupleMember() && (existing().senderUid == request.auth.uid || existing().visibility == 'shared'))
+        );
+
+      // 7b. Time-Locked Secret Message & Photo (NEVER readable by recipients before request.time >= parent.unlockAt)
+      match /secret/{secretId} {
+        allow get: if isValidId(postcardId) && secretId == 'content' && canReadPostcardSecretDoc(postcardId);
+        allow list: if false;
+        allow create: if isValidId(postcardId)
+          && secretId == 'content'
+          && isCoupleMember()
+          && isValidPostcardSecret(incoming(), postcardId)
+          && incoming().ownerUid == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/postcards/$(postcardId));
+        allow update: if isValidId(postcardId)
+          && secretId == 'content'
+          && canUpdatePostcardSecretDoc(postcardId)
+          && isValidPostcardSecret(incoming(), postcardId)
+          && incoming().postcardId == existing().postcardId
+          && incoming().ownerUid == existing().ownerUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['message', 'photoUrl', 'updatedAt']);
+        allow delete: if isValidId(postcardId)
+          && secretId == 'content'
+          && (isAdmin() || (isCoupleMember() && existing().ownerUid == request.auth.uid));
+      }
+    }
+
+    // 8. Media Assets Index (Admin only)
+    match /mediaAssets/{assetId} {
+      allow get: if isValidId(assetId) && isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(assetId)
+        && isAdmin()
+        && isValidMediaAssetMeta(incoming(), assetId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(assetId)
+        && isValidMediaAssetMeta(incoming(), assetId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().uploaderUid == existing().uploaderUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'url',
+          'storagePath',
+          'filename',
+          'category',
+          'kind',
+          'sizeBytes',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(assetId) && isAdmin();
+    }
+
+    // 9. Our Story Secret Notes (Public reads strictly scoped to enabled == true)
+    match /secretNotes/{noteId} {
+      allow get: if isValidId(noteId) && (existing().enabled == true || isAdmin());
+      allow list: if resource.data.enabled == true || isBootstrappedAdmin();
+      allow create: if isValidId(noteId)
+        && isAdmin()
+        && isValidSecretNote(incoming(), noteId)
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(noteId)
+        && isValidSecretNote(incoming(), noteId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title',
+          'hint',
+          'recipient',
+          'message',
+          'signature',
+          'pageNumber',
+          'enabled',
+          'sealColor',
+          'stampText',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(noteId) && isAdmin();
+    }
+  }
+}

@@ -1,0 +1,829 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized website administrator record mapped by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the administrator.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified administrator email address.",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"],
+          "description": "Assigned role identifier."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the admin record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the admin record was updated."
+        }
+      },
+      "required": ["uid", "email", "role", "createdAt", "updatedAt"]
+    },
+    "AccessConfig": {
+      "title": "AccessConfig",
+      "description": "Private access and couple authorization configuration for Admin Dashboard and Our Future Wishlist.",
+      "type": "object",
+      "properties": {
+        "configId": {
+          "type": "string",
+          "enum": ["access"],
+          "description": "Fixed configuration document identifier."
+        },
+        "adminEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Primary administrator Google account email.",
+          "minLength": 5,
+          "maxLength": 200
+        },
+        "oktafEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Authorized Google account email for Oktaf.",
+          "minLength": 5,
+          "maxLength": 200
+        },
+        "wulanEmail": {
+          "type": "string",
+          "description": "Authorized Google account email for Wulan (empty string until assigned).",
+          "maxLength": 200
+        },
+        "wishlistPrivacyMode": {
+          "type": "string",
+          "enum": ["couple-only", "admin-only"],
+          "description": "Visibility mode for Our Future Wishlist."
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "UID of the administrator who last saved this config.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "configId",
+        "adminEmail",
+        "oktafEmail",
+        "wulanEmail",
+        "wishlistPrivacyMode",
+        "updatedBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SiteContentSection": {
+      "title": "SiteContentSection",
+      "description": "Partitioned website section content (Our Story, Our World, Letters, Video, Mini Oktaf, Vinyl Config).",
+      "type": "object",
+      "properties": {
+        "sectionId": {
+          "type": "string",
+          "enum": ["story", "world", "letters", "video", "miniOktaf", "vinyl"],
+          "description": "Section document key."
+        },
+        "payload": {
+          "type": "object",
+          "description": "Structured section content map using native Firestore maps and arrays."
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "UID of the administrator who saved the section.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": ["sectionId", "payload", "updatedBy", "createdAt", "updatedAt"]
+    },
+    "VoiceEntry": {
+      "title": "VoiceEntry",
+      "description": "Friend voice greeting card in Voices of Love with Firebase Storage audio and photo URLs.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique identifier for the voice entry."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Friend display name."
+        },
+        "flowerType": {
+          "type": "string",
+          "enum": [
+            "sakura",
+            "sunflower",
+            "daisy",
+            "lavender",
+            "rose",
+            "forgetmenot",
+            "tulip",
+            "lily",
+            "peony",
+            "orchid"
+          ],
+          "description": "Assigned botanical flower illustration identifier."
+        },
+        "audioUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "Firebase Storage or public asset URL for the MP3/OGG recording."
+        },
+        "audioFileName": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Display filename for the uploaded recording."
+        },
+        "photoUrl": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Optional friend photo URL."
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 1500,
+          "description": "Optional short written note."
+        },
+        "order": {
+          "type": "number",
+          "description": "1-based display sort order."
+        },
+        "permissionConfirmed": {
+          "type": "boolean",
+          "description": "Admin confirmation that real recording consent is verified."
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the administrator who created the entry."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "flowerType",
+        "audioUrl",
+        "audioFileName",
+        "order",
+        "permissionConfirmed",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VinylTrack": {
+      "title": "VinylTrack",
+      "description": "YouTube-backed track entry for Our Little Vinyl Player.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique track identifier."
+        },
+        "youtubeUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Original YouTube URL or video ID."
+        },
+        "youtubeVideoId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{11}$",
+          "minLength": 11,
+          "maxLength": 11,
+          "description": "Canonical 11-character YouTube video ID."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140,
+          "description": "Song title shown on vinyl player."
+        },
+        "artist": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Optional artist name."
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Optional custom or YouTube thumbnail URL."
+        },
+        "order": {
+          "type": "number",
+          "description": "1-based track playback order."
+        },
+        "isPublished": {
+          "type": "boolean",
+          "description": "Whether track is active in the public vinyl playlist."
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the administrator who created the track."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "youtubeUrl",
+        "youtubeVideoId",
+        "title",
+        "order",
+        "isPublished",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WishlistEntry": {
+      "title": "WishlistEntry",
+      "description": "Private collaborative dream/goal entry for Oktaf and Wulan in Our Future Wishlist.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique wish identifier."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Short wish title."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Wish description or personal note."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["your", "her", "our"],
+          "description": "your = Oktaf personal, her = Wulan personal, our = Shared wishes."
+        },
+        "creatorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the creator."
+        },
+        "creatorEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200,
+          "description": "Normalized email of the creator."
+        },
+        "creatorRole": {
+          "type": "string",
+          "enum": ["oktaf", "wulan"],
+          "description": "Display author identity role."
+        },
+        "creatorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Human-friendly display name (Oktaf or Wulan)."
+        },
+        "targetDate": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Optional target date string."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["dreaming", "planned", "in_progress", "completed"],
+          "description": "Lifecycle status of the wish."
+        },
+        "photos": {
+          "type": "array",
+          "description": "Optional array (max 6) of Firebase Storage photo URLs."
+        },
+        "completionStory": {
+          "type": "string",
+          "maxLength": 3000,
+          "description": "Optional reflection or memory story when status is completed."
+        },
+        "completedAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Optional completion date timestamp ISO string."
+        },
+        "allowedEmails": {
+          "type": "array",
+          "description": "Bounded list (max 4) of authorized emails permitted to access this couple wish."
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "private", "shared", "couple"],
+          "description": "Visibility mode: public for website visitors, private/couple for Oktaf & Wulan, shared for collaborative couple edits."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "category",
+        "creatorUid",
+        "creatorEmail",
+        "creatorRole",
+        "creatorName",
+        "status",
+        "photos",
+        "completionStory",
+        "allowedEmails",
+        "visibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PostcardEnvelope": {
+      "title": "PostcardEnvelope",
+      "description": "Envelope metadata for Postcards From The Future. Never contains locked message or private photoUrl.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique postcard identifier."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Postcard envelope title."
+        },
+        "senderUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the postcard author."
+        },
+        "senderEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200,
+          "description": "Normalized email of the postcard author."
+        },
+        "senderRole": {
+          "type": "string",
+          "enum": ["oktaf", "wulan"],
+          "description": "Sender role."
+        },
+        "senderName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Display sender name (Oktaf or Wulan)."
+        },
+        "recipient": {
+          "type": "string",
+          "enum": ["oktaf", "wulan", "both"],
+          "description": "Target recipient(s) allowed to unlock this postcard."
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "private", "shared"],
+          "description": "Visibility mode controlling who can view the postcard envelope/unlocked letter."
+        },
+        "unlockAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server-enforced Firestore Timestamp after which secret content can be read and opened."
+        },
+        "unlockDateLabel": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Human-friendly unlock date label."
+        },
+        "createdDateLabel": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Human-friendly creation date label."
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Optional postmark place/city."
+        },
+        "stampStyle": {
+          "type": "string",
+          "enum": ["par_avion", "future_mail", "wax_heart", "cherry_blossom"],
+          "description": "Decorative vintage postage stamp motif."
+        },
+        "designTheme": {
+          "type": "string",
+          "enum": ["vintage_cream", "botanical_sage", "rose_parchment", "airmail_classic"],
+          "description": "Visual stationery design theme."
+        },
+        "isOpened": {
+          "type": "boolean",
+          "description": "Whether the postcard has been opened by an authorized recipient after unlockAt."
+        },
+        "openedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp recorded when the postcard was first opened."
+        },
+        "openedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the recipient who opened the postcard."
+        },
+        "order": {
+          "type": "number",
+          "description": "1-based display sort order."
+        },
+        "allowedEmails": {
+          "type": "array",
+          "description": "Bounded list (max 4) of couple member emails permitted to view private/shared envelopes."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "senderUid",
+        "senderEmail",
+        "senderRole",
+        "senderName",
+        "recipient",
+        "visibility",
+        "unlockAt",
+        "unlockDateLabel",
+        "createdDateLabel",
+        "location",
+        "stampStyle",
+        "designTheme",
+        "isOpened",
+        "order",
+        "allowedEmails",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PostcardSecret": {
+      "title": "PostcardSecret",
+      "description": "Time-locked postcard message and optional photo stored exclusively under a subcollection gated by request.time >= parent.unlockAt.",
+      "type": "object",
+      "properties": {
+        "postcardId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Parent postcard document ID."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "description": "Handwritten message revealed after unlockAt."
+        },
+        "photoUrl": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Optional Firebase Storage photo URL attached to the postcard."
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the postcard author."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["postcardId", "message", "photoUrl", "ownerUid", "createdAt", "updatedAt"]
+    },
+    "MediaAssetMeta": {
+      "title": "MediaAssetMeta",
+      "description": "Metadata index for files uploaded to Firebase Storage via Admin Dashboard.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Asset metadata document ID."
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200,
+          "description": "Firebase Storage download URL."
+        },
+        "storagePath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400,
+          "description": "Object path in Firebase Storage bucket."
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Original sanitized filename."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["friends-audio", "images", "audio", "videos", "wishlist", "postcards"],
+          "description": "Storage bucket category."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["image", "audio", "video"],
+          "description": "Normalized media type."
+        },
+        "sizeBytes": {
+          "type": "number",
+          "description": "File byte size."
+        },
+        "uploaderUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the uploader."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "storagePath",
+        "filename",
+        "category",
+        "kind",
+        "sizeBytes",
+        "uploaderUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SecretNote": {
+      "title": "SecretNote",
+      "description": "Our Story hidden envelope secret note assigned to a specific scrapbook page.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique Secret Note document identifier."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Short display title of the secret note."
+        },
+        "hint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Short envelope invitation hint shown on the scrapbook page."
+        },
+        "recipient": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Recipient salutation line shown at the top of the letter."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 3000,
+          "description": "Full secret note message."
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Closing signature line."
+        },
+        "pageNumber": {
+          "type": "number",
+          "description": "Assigned Our Story page number (1 to 17)."
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the secret note is published and visible on the Our Story page."
+        },
+        "sealColor": {
+          "type": "string",
+          "enum": ["#A6533B", "#455342", "#743D4A", "#C4A574"],
+          "description": "Wax seal accent color."
+        },
+        "stampText": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Short decorative stamp badge text on the stationery modal."
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the administrator who created the secret note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "hint",
+        "recipient",
+        "message",
+        "signature",
+        "pageNumber",
+        "enabled",
+        "sealColor",
+        "stampText",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{userId}": {
+      "schema": {
+        "$ref": "#/entities/AdminUser"
+      },
+      "description": "Stores verified administrator accounts permitted to mutate site content and media."
+    },
+    "/config/{configId}": {
+      "schema": {
+        "$ref": "#/entities/AccessConfig"
+      },
+      "description": "Stores private couple authorization emails and privacy configuration (config/access)."
+    },
+    "/siteContent/{sectionId}": {
+      "schema": {
+        "$ref": "#/entities/SiteContentSection"
+      },
+      "description": "Stores partitioned public website content sections (story, world, letters, video, miniOktaf, vinyl)."
+    },
+    "/voices/{voiceId}": {
+      "schema": {
+        "$ref": "#/entities/VoiceEntry"
+      },
+      "description": "Stores individual Voices of Love friend audio cards."
+    },
+    "/vinylPlaylist/{trackId}": {
+      "schema": {
+        "$ref": "#/entities/VinylTrack"
+      },
+      "description": "Stores YouTube playlist entries for Our Little Vinyl Player."
+    },
+    "/wishlist/{wishId}": {
+      "schema": {
+        "$ref": "#/entities/WishlistEntry"
+      },
+      "description": "Stores public, private, and shared couple wishlist entries for Our Future Wishlist."
+    },
+    "/postcards/{postcardId}": {
+      "schema": {
+        "$ref": "#/entities/PostcardEnvelope"
+      },
+      "description": "Stores envelope metadata for Postcards From The Future without exposing time-locked messages or photos."
+    },
+    "/postcards/{postcardId}/secret/{secretId}": {
+      "schema": {
+        "$ref": "#/entities/PostcardSecret"
+      },
+      "description": "Stores time-locked postcard messages and optional photos readable only after request.time >= parent.unlockAt."
+    },
+    "/mediaAssets/{assetId}": {
+      "schema": {
+        "$ref": "#/entities/MediaAssetMeta"
+      },
+      "description": "Stores index metadata for Firebase Storage uploads managed in Admin Dashboard."
+    },
+    "/secretNotes/{noteId}": {
+      "schema": {
+        "$ref": "#/entities/SecretNote"
+      },
+      "description": "Stores Our Story secret notes assignable to specific scrapbook pages (publicly readable only when enabled == true)."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4EBDD"/>
+      <stop offset="100%" stop-color="#E8BFC5"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g1)"/>
+  <rect x="16" y="16" width="368" height="268" fill="none" stroke="#A6533B" stroke-opacity="0.2" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <ellipse cx="200" cy="185" rx="58" ry="14" fill="#A6533B" opacity="0.2"/><path d="M155 130 h90 v36 a38 38 0 0 1 -90 0 z" fill="#F4EBDD" stroke="#A6533B" stroke-width="3"/><path d="M245 138 c18 0 18 24 0 24" fill="none" stroke="#A6533B" stroke-width="3"/><path d="M180 112 q-6 -14 4 -24 M205 108 q-6 -14 4 -24" fill="none" stroke="#A6533B" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+  <text x="200" y="254" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#A6533B" opacity="0.85">Cafe Sore · 01</text>
+</svg>

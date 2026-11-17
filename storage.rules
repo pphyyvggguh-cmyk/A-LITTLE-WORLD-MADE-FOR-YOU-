@@ -1,0 +1,50 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'oktafmbul0@gmail.com';
+    }
+
+    function isValidMediaUpload() {
+      return request.resource.size <= 55 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/(jpeg|jpg|png|webp)')
+          || request.resource.contentType.matches('audio/(mpeg|mp3|ogg)')
+          || request.resource.contentType == 'application/ogg'
+          || request.resource.contentType.matches('video/(mp4|webm)')
+        );
+    }
+
+    function isValidImageUpload() {
+      return request.resource.size <= 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
+    }
+
+    // Site content media & Voices of Love friend audio/photos
+    match /site-media/{folder}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && (request.resource == null || isValidMediaUpload());
+    }
+
+    // Wishlist photos (readable when download URL is rendered in authorized/public cards)
+    match /wishlist-media/{wishId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.resource == null || isValidImageUpload());
+    }
+
+    // Postcard photos (secret download URL only stored inside time-locked /postcards/{id}/secret/content)
+    match /postcard-media/{postcardId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.resource == null || isValidImageUpload());
+    }
+
+    // Catch-all deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

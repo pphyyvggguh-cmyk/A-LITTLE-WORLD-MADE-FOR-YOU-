@@ -1,0 +1,222 @@
+import { useEffect } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { BookmarkCheck, BookOpen, Flower2, Lock, X } from 'lucide-react';
+import { FLOWERS_DATA } from '../data/flowers';
+import { useStore } from '../store/useStore';
+import { EASE_OUT_EXPO } from '../utils/animation';
+import { getChapterIndexSummary } from '../utils/storybookMotion';
+import { BookCornerOrnamentSVG } from './storybook/StorybookIllustrations';
+
+interface ContentsDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  onChapterSelected?: () => void;
+}
+
+export function ContentsDrawer({
+  open,
+  onClose,
+  onChapterSelected,
+}: ContentsDrawerProps) {
+  const currentSection = useStore((s) => s.currentSection);
+  const visitedSections = useStore((s) => s.visitedSections);
+  const collectedFlowers = useStore((s) => s.collectedFlowers);
+  const questDiscovered = useStore((s) => s.questDiscovered);
+  const rewardClaimed = useStore((s) => s.rewardClaimed);
+  const navigateTo = useStore((s) => s.navigateTo);
+  const setQuestModalOpen = useStore((s) => s.setQuestModalOpen);
+
+  const isRewardUnlocked =
+    rewardClaimed || collectedFlowers.length >= FLOWERS_DATA.length;
+
+  const summary = getChapterIndexSummary(
+    currentSection,
+    visitedSections,
+    isRewardUnlocked
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
+  const handleNavigate = (sectionId: (typeof summary.chapters)[number]['id']) => {
+    navigateTo(sectionId);
+    onChapterSelected?.();
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Daftar Isi Buku Cerita"
+        >
+          {/* Warm linen vignette backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-[#38271F]/45"
+          />
+
+          {/* Book-Inspired Chapter Index Folio */}
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 18, scale: 0.98 }}
+            transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
+            className="relative z-10 w-full sm:max-w-lg max-h-[86dvh] flex flex-col bg-[#FBF6EE] border border-[#38271F]/18 rounded-t-2xl sm:rounded-2xl shadow-polaroid-lifted overflow-hidden"
+          >
+            {/* Mobile grab bar */}
+            <div className="sm:hidden flex justify-center pt-2.5 pb-1">
+              <span className="w-10 h-1 rounded-full bg-[#38271F]/20" />
+            </div>
+
+            <BookCornerOrnamentSVG className="pointer-events-none hidden sm:block absolute top-2 left-2 w-4 h-4 opacity-45" />
+
+            {/* Chapter Folio Header */}
+            <header className="px-5 sm:px-7 pt-4 sm:pt-6 pb-4 border-b border-[#38271F]/12 flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-widest text-[#743D4A]">
+                  <BookOpen className="w-3.5 h-3.5 text-[#A6533B]" />
+                  <span>Daftar Isi Buku</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="tabular-nums text-[#455342]">
+                    {summary.visitedCount}/{summary.totalAccessibleCount} bab
+                  </span>
+                </div>
+                <h2 className="font-serif text-2xl font-semibold text-[#38271F] tracking-tight">
+                  Table of Contents
+                </h2>
+                <p className="font-hand text-lg text-[#38271F]/70 leading-tight">
+                  Pilih bab cerita yang ingin kamu buka kembali.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Tutup daftar isi"
+                className="min-w-[44px] min-h-[44px] -mr-2 rounded-xl flex items-center justify-center text-[#38271F]/70 hover:text-[#38271F] hover:bg-[#EAE0CF]/70 transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            {/* Chapter Index List */}
+            <nav
+              aria-label="Indeks bab dunia kecil"
+              className="flex-1 overflow-y-auto px-4 sm:px-7 py-3 divide-y divide-[#38271F]/8"
+            >
+              {summary.chapters.map((chapter) => {
+                if (chapter.requiresReward && chapter.isLocked && !questDiscovered) {
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={chapter.id}
+                    type="button"
+                    onClick={() => handleNavigate(chapter.id)}
+                    aria-current={chapter.isCurrent ? 'page' : undefined}
+                    className={`w-full min-h-[54px] py-3 px-3 -mx-1 rounded-xl flex items-center justify-between gap-3 text-left transition-colors cursor-pointer ${
+                      chapter.isCurrent
+                        ? 'bg-[#EAE0CF]/75 text-[#38271F]'
+                        : 'hover:bg-[#F4EBDD]/90 text-[#38271F]/85'
+                    }`}
+                  >
+                    <div className="flex items-baseline gap-3 min-w-0">
+                      <span
+                        className={`text-xs font-medium tabular-nums shrink-0 ${
+                          chapter.isCurrent ? 'text-[#A6533B]' : 'text-[#743D4A]/70'
+                        }`}
+                      >
+                        {chapter.chapterNumber}
+                      </span>
+                      <div className="min-w-0">
+                        <p
+                          className={`font-serif text-base truncate ${
+                            chapter.isCurrent
+                              ? 'font-semibold text-[#38271F]'
+                              : 'font-medium text-[#38271F]'
+                          }`}
+                        >
+                          {chapter.title}
+                        </p>
+                        <p className="text-xs text-[#38271F]/62 truncate">
+                          {chapter.isLocked
+                            ? `Terkunci (${collectedFlowers.length}/${FLOWERS_DATA.length} bunga)`
+                            : chapter.subtitle}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-1.5 text-xs font-medium">
+                      {chapter.isCurrent ? (
+                        <span className="inline-flex items-center gap-1 text-[#A6533B] whitespace-nowrap">
+                          <BookmarkCheck className="w-3.5 h-3.5" />
+                          <span>Sedang Dibaca</span>
+                        </span>
+                      ) : chapter.isLocked ? (
+                        <Lock className="w-3.5 h-3.5 text-[#38271F]/40" />
+                      ) : (
+                        <span className="text-sm text-[#38271F]/50 font-serif">→</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Footer: Secret Quest Quick Access & Admin Control Room */}
+            <footer className="px-5 sm:px-7 py-3.5 border-t border-[#38271F]/12 bg-[#F4EBDD]/60 flex items-center justify-between gap-3">
+              {questDiscovered ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    setQuestModalOpen(true);
+                  }}
+                  className="min-h-[40px] inline-flex items-center gap-1.5 text-xs font-medium text-[#455342] hover:text-[#38271F] cursor-pointer"
+                >
+                  <Flower2 className="w-4 h-4 text-[#A6533B]" />
+                  <span className="tabular-nums">
+                    Misi Bunga ({collectedFlowers.length}/{FLOWERS_DATA.length})
+                  </span>
+                </button>
+              ) : (
+                <span className="font-hand text-base text-[#38271F]/65">
+                  A Little World Made For You ♡
+                </span>
+              )}
+
+              <a
+                href="/admin"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onClose();
+                  window.history.pushState(null, '', '/admin');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
+                className="min-h-[40px] px-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#38271F]/55 hover:text-[#743D4A] transition-colors whitespace-nowrap"
+              >
+                <Lock className="w-3 h-3" />
+                <span>Control Room</span>
+              </a>
+            </footer>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}

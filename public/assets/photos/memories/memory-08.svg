@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="g8" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4EBDD"/>
+      <stop offset="100%" stop-color="#D9A7B0"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g8)"/>
+  <rect x="16" y="16" width="368" height="268" fill="none" stroke="#743D4A" stroke-opacity="0.2" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <circle cx="200" cy="138" r="44" fill="none" stroke="#743D4A" stroke-width="3" opacity="0.75"/><circle cx="200" cy="138" r="22" fill="#743D4A" opacity="0.25"/><path d="M90 215 Q200 175 310 215" fill="none" stroke="#743D4A" stroke-width="2.5" opacity="0.5"/>
+  <text x="200" y="254" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#743D4A" opacity="0.85">Musik Berdua · 08</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280">
+  <defs>
+    <linearGradient id="d12" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#F4EBDD"/>
+      <stop offset="100%" stop-color="#A9BDC4"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="280" fill="url(#d12)"/>
+  <circle cx="315" cy="70" r="34" fill="none" stroke="#38271F" stroke-opacity="0.28" stroke-width="2"/>
+  <circle cx="315" cy="70" r="24" fill="none" stroke="#38271F" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="3 3"/>
+  <path d="M0 205 Q100 165 210 198 T400 185 L400 280 L0 280 Z" fill="#38271F" opacity="0.2"/>
+  <path d="M0 228 Q140 198 280 225 T400 215 L400 280 L0 280 Z" fill="#38271F" opacity="0.35"/>
+  <path d="M165 130 L235 108 L205 162 L195 138 Z" fill="#38271F" opacity="0.72"/>
+  <text x="28" y="54" font-family="Georgia, serif" font-size="13" fill="#38271F" opacity="0.65" letter-spacing="2">USA</text>
+  <text x="28" y="88" font-family="Georgia, serif" font-weight="bold" font-size="28" fill="#38271F">Washington, D.C.</text>
+  <text x="28" y="256" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#F4EBDD" opacity="0.9">Wish we were here · Stamp #12</text>
+</svg>

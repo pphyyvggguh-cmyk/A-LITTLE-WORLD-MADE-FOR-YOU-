@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="g17" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4EBDD"/>
+      <stop offset="100%" stop-color="#E7D4B5"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g17)"/>
+  <rect x="16" y="16" width="368" height="268" fill="none" stroke="#A6533B" stroke-opacity="0.24" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <path d="M105 178 C155 135 245 135 295 178" fill="none" stroke="#A6533B" stroke-width="2" stroke-dasharray="5 4" opacity="0.65"/>
+  <circle cx="200" cy="128" r="28" fill="#A6533B" opacity="0.2" stroke="#A6533B" stroke-width="2"/>
+  <path d="M200 112 L204 124 L216 124 L206 131 L210 143 L200 135 L190 143 L194 131 L184 124 L196 124 Z" fill="#A6533B" opacity="0.72"/>
+  <text x="200" y="254" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#38271F" opacity="0.85">Lembar Selanjutnya · 17</text>
+</svg>

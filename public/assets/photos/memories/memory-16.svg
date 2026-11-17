@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="g16" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4EBDD"/>
+      <stop offset="100%" stop-color="#DFC4C8"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g16)"/>
+  <rect x="16" y="16" width="368" height="268" fill="none" stroke="#743D4A" stroke-opacity="0.22" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <path d="M200 185 C155 152 140 112 170 96 C188 86 200 104 200 112 C200 104 212 86 230 96 C260 112 245 152 200 185 Z" fill="#743D4A" opacity="0.32" stroke="#743D4A" stroke-width="2"/>
+  <line x1="120" y1="212" x2="280" y2="212" stroke="#743D4A" stroke-width="1.5" stroke-opacity="0.4"/>
+  <text x="200" y="254" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#743D4A" opacity="0.85">Ruang Tenang · 16</text>
+</svg>

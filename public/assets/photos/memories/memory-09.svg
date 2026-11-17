@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="g9" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4EBDD"/>
+      <stop offset="100%" stop-color="#7E8FA6"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g9)"/>
+  <rect x="16" y="16" width="368" height="268" fill="none" stroke="#38271F" stroke-opacity="0.2" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <circle cx="200" cy="135" r="34" fill="#F4EBDD" opacity="0.9"/><circle cx="214" cy="128" r="28" fill="#7E8FA6"/><circle cx="110" cy="80" r="3" fill="#F4EBDD"/><circle cx="290" cy="70" r="3.5" fill="#F4EBDD"/><circle cx="310" cy="150" r="2.5" fill="#F4EBDD"/><circle cx="95" cy="165" r="2.5" fill="#F4EBDD"/><path d="M40 220 Q200 180 360 225 L360 280 L40 280 Z" fill="#38271F" opacity="0.65"/>
+  <text x="200" y="254" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#38271F" opacity="0.85">Langit Malam · 09</text>
+</svg>
