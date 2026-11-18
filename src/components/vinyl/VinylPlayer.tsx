@@ -361,6 +361,7 @@ export function VinylPlayer() {
     <aside
       aria-label="Our Little Vinyl Player"
       data-testid="vinyl-player"
+      data-no-chapter-swipe="true"
       data-playing={isPlaying ? 'true' : 'false'}
       className="fixed bottom-3 left-3 sm:bottom-5 sm:left-5 z-40"
     >

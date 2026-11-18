@@ -14,7 +14,6 @@ const NAV_LINKS: { id: AppSection; label: string }[] = [
   { id: 'voices', label: 'Voices' },
   { id: 'wishlist', label: 'Wishlist' },
   { id: 'postcards', label: 'Postcards' },
-  { id: 'calendar', label: 'Calendar' },
 ];
 
 export function Navigation({

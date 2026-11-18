@@ -407,10 +407,140 @@
   .book-turn-leaf-prev,
   .book-turn-shadow-overlay,
   .book-drag-leaf-next,
-  .book-drag-leaf-prev {
+  .book-drag-leaf-prev,
+  .chapter-turn-enter-next,
+  .chapter-turn-enter-prev {
     animation: none !important;
     transform: none !important;
     transition: none !important;
   }
 }
 
+/* --- Whole-Website Interactive Storybook Chapter Turning Stage --- */
+.storybook-chapter-viewport {
+  perspective: 2200px;
+  perspective-origin: 50% 45%;
+}
+
+@keyframes chapterTurnNext {
+  0% {
+    opacity: 0.25;
+    transform: translate3d(26px, 0, 0) rotateY(-8deg) scale(0.985);
+    transform-origin: left center;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateY(0deg) scale(1);
+    transform-origin: left center;
+  }
+}
+
+@keyframes chapterTurnPrev {
+  0% {
+    opacity: 0.25;
+    transform: translate3d(-26px, 0, 0) rotateY(8deg) scale(0.985);
+    transform-origin: right center;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateY(0deg) scale(1);
+    transform-origin: right center;
+  }
+}
+
+.chapter-turn-enter-next {
+  animation: chapterTurnNext 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.chapter-turn-enter-prev {
+  animation: chapterTurnPrev 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.storybook-chapter-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(166, 83, 59, 0.35) transparent;
+}
+
+.storybook-chapter-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.storybook-chapter-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.storybook-chapter-scroll::-webkit-scrollbar-thumb {
+  background: rgba(166, 83, 59, 0.32);
+  border-radius: 9999px;
+}
+
+.storybook-chapter-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(166, 83, 59, 0.55);
+}
+
+/* --- Cinematic 3D Book-Opening Intro Sequence --- */
+.cinematic-intro-perspective {
+  perspective: 2100px;
+  perspective-origin: 50% 46%;
+}
+
+@media (max-width: 640px) {
+  .cinematic-intro-perspective {
+    perspective: 1200px;
+    perspective-origin: 50% 48%;
+  }
+}
+
+.cinematic-intro-spotlight {
+  background-color: #f4ebdd;
+  background-image:
+    radial-gradient(circle at 50% 44%, rgba(255, 250, 240, 0.72) 0%, rgba(244, 235, 221, 0.3) 44%, rgba(56, 39, 31, 0.14) 100%),
+    radial-gradient(at 18% 18%, rgba(232, 191, 197, 0.25) 0px, transparent 50%),
+    radial-gradient(at 84% 22%, rgba(196, 165, 116, 0.22) 0px, transparent 52%);
+}
+
+@keyframes introDustFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0.26;
+  }
+  50% {
+    transform: translate3d(6px, -14px, 0) rotate(12deg);
+    opacity: 0.58;
+  }
+}
+
+@keyframes introCoverSheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.32;
+  }
+  65%,
+  100% {
+    transform: translateX(180%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+.intro-dust-speck {
+  animation: introDustFloat 4.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.intro-cover-sheen {
+  animation: introCoverSheen 2.4s ease-out 0.15s 1 both;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-dust-speck,
+  .intro-cover-sheen {
+    animation: none !important;
+  }
+}

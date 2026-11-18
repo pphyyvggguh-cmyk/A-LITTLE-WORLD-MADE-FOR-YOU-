@@ -301,7 +301,7 @@ export function BookPage({
 
             {/* Vintage Ticket Stub Strip */}
             <div className="border-y border-dashed border-[#38271F]/25 py-1 px-2 bg-[#EFE4D1]/70 flex items-center justify-between text-[8px] sm:text-[10px] tracking-wider uppercase text-[#743D4A] font-medium">
-              <span>{page.extraTags?.[0] ?? 'TICKET 0204'}</span>
+              <span>{page.extraTags?.[0] ?? 'TICKET 1902'}</span>
               <span className="hidden sm:inline">{page.extraTags?.[1] ?? 'ADMIT TWO'}</span>
             </div>
 
@@ -567,7 +567,7 @@ export function BookPage({
     <section
       aria-label={pageLabel}
       data-book-side={side}
-      className={`relative h-full min-h-[372px] sm:min-h-[475px] md:min-h-[526px] p-3 sm:p-5 md:p-7 flex flex-col justify-between overflow-hidden ${tintClass} ${sideShadowClass} ${
+      className={`relative h-full min-h-[372px] sm:min-h-[446px] md:min-h-[456px] p-3 sm:p-5 md:p-5 lg:p-6 flex flex-col justify-between overflow-hidden ${tintClass} ${sideShadowClass} ${
         side === 'left'
           ? 'rounded-l-md sm:rounded-l-lg border-r border-[#38271F]/10'
           : 'rounded-r-md sm:rounded-r-lg border-l border-[#38271F]/10'
@@ -617,7 +617,7 @@ export function ClosingBookPage({ onReturnToCover }: { onReturnToCover: () => vo
     <section
       aria-label="Halaman penutup dekoratif"
       data-book-side="right"
-      className="relative h-full min-h-[372px] sm:min-h-[475px] md:min-h-[526px] p-3 sm:p-5 md:p-7 flex flex-col items-center justify-between overflow-hidden bg-[#F7EFE1] book-page-right rounded-r-md sm:rounded-r-lg border-l border-[#38271F]/10 text-center"
+      className="relative h-full min-h-[372px] sm:min-h-[446px] md:min-h-[456px] p-3 sm:p-5 md:p-5 lg:p-6 flex flex-col items-center justify-between overflow-hidden bg-[#F7EFE1] book-page-right rounded-r-md sm:rounded-r-lg border-l border-[#38271F]/10 text-center"
     >
       {/* Top Botanical Wreath Corner & Flower #3 for Secret Quest */}
       <div className="w-full flex items-start justify-between">

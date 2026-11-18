@@ -78,14 +78,8 @@ export const STORYBOOK_CHAPTERS: StorybookChapterItem[] = [
     subtitle: 'Surat Tersegel Waktu',
   },
   {
-    id: 'calendar',
-    chapterNumber: '08',
-    title: 'Our Living Calendar ♡',
-    subtitle: 'Almanak Momen & Hari Spesial',
-  },
-  {
     id: 'reward',
-    chapterNumber: '09',
+    chapterNumber: '08',
     title: 'Secret Meadow',
     subtitle: 'Hadiah Taman 7 Bunga',
     requiresReward: true,
@@ -172,14 +166,6 @@ export const SECTION_ANIMATION_PROFILES: Record<AppSection, SectionAnimationProf
     petalTint: '#C4A574',
     fireflyTint: '#C4A574',
     accentTone: '#A6533B',
-  },
-  calendar: {
-    section: 'calendar',
-    moodLabel: 'Almanak Musim',
-    creatures: ['cat', 'mushroom', 'leaves', 'petals'],
-    petalTint: '#E8BFC5',
-    fireflyTint: '#C4A574',
-    accentTone: '#455342',
   },
   reward: {
     section: 'reward',

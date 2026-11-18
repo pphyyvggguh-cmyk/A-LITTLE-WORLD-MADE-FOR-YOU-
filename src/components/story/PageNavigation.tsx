@@ -33,7 +33,7 @@ export function PageNavigation({
   const spreadTheme = currentSpread?.leftPage?.spreadTheme ?? `Spread ${spreadIndex + 1}`;
 
   return (
-    <div className="relative w-full max-w-[540px] mx-auto px-2 sm:px-3 mt-3">
+    <div className="relative w-full max-w-[540px] mx-auto px-2 sm:px-3 mt-2">
       <div className="bg-[#FBF6EE]/86 backdrop-blur-xs border border-[#38271F]/12 rounded-xl px-2.5 py-1.5 sm:px-3.5 sm:py-2 shadow-xs">
         <div className="flex items-center justify-between gap-2">
           {/* Close Book */}
@@ -118,7 +118,7 @@ export function PageNavigation({
       </div>
 
       {/* Subtle Gesture Tip */}
-      <p className="mt-1.5 px-4 text-center font-hand text-[13px] sm:text-sm text-[#38271F]/65 select-none">
+      <p className="mt-1 px-4 text-center font-hand text-[13px] sm:text-sm text-[#38271F]/65 select-none">
         <span className="sm:hidden">Ketuk sisi kertas, geser, atau tarik sudutnya ♡</span>
         <span className="hidden sm:inline">
           Ketuk halaman kiri/kanan, geser, atau tarik sudut kertas untuk membalik halaman ♡

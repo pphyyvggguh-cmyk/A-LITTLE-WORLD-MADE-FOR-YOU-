@@ -95,7 +95,7 @@ export function PasswordGate() {
             </svg>
 
             <div className="postage-stamp absolute top-4 right-4 px-2.5 py-1 text-[10px] tracking-widest font-semibold text-[#743D4A] uppercase rotate-3">
-              02 · APR · 26
+              FOR · WULAN
             </div>
 
             <motion.div

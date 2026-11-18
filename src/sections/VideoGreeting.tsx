@@ -115,7 +115,7 @@ export function VideoGreeting() {
   };
 
   return (
-    <main className="relative min-h-[calc(100dvh-3.5rem)] w-full bg-[#1C1614] text-[#F4EBDD] px-4 sm:px-8 pt-7 sm:pt-9 pb-36 sm:pb-28 overflow-x-hidden">
+    <main className="relative min-h-full w-full bg-[#1C1614] text-[#F4EBDD] px-4 sm:px-8 pt-6 sm:pt-8 pb-28 overflow-x-hidden">
       <div className="relative z-10 max-w-4xl mx-auto">
         <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#F4EBDD]/14">
           <div className="space-y-1.5">
@@ -131,7 +131,7 @@ export function VideoGreeting() {
           {/* Flower #7 tucked gently on the vintage ticket corner */}
           <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
             <div className="px-3 py-1 rounded border border-dashed border-[#C4A574]/55 text-[10px] tracking-widest uppercase text-[#C4A574]">
-              {videoConfig.ticketLabel || 'TIKET · 02.04.26'}
+              {videoConfig.ticketLabel || 'TIKET · 19.02'}
             </div>
             <HiddenFlowerSpot flowerId="flower-tulip" />
           </div>

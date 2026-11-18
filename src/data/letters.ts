@@ -21,8 +21,8 @@ export const LETTERS_DATA: BirthdayLetter[] = [
     title: 'Untuk Hari Ulang Tahunmu',
     recipient: 'Wulan',
     sender: 'Oktaf',
-    dateLabel: '02 April 2026',
-    stampText: 'WULAN · 02.04',
+    dateLabel: '19 Februari',
+    stampText: 'WULAN · 19.02',
     sealColor: '#A6533B',
     preview: 'Selamat ulang tahun ya, Wulan. Semoga di usia barumu langkahmu terasa lebih ringan...',
     paragraphs: [

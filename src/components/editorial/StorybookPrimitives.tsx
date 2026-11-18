@@ -18,7 +18,7 @@ export function EditorialSectionShell({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: EASE_OUT_EXPO }}
       data-testid={testId}
-      className={`paper-canvas relative min-h-[calc(100dvh-3.5rem)] w-full px-4 sm:px-8 pt-5 sm:pt-8 pb-36 sm:pb-28 overflow-x-hidden ${className}`}
+      className={`paper-canvas relative min-h-full w-full px-4 sm:px-8 pt-5 sm:pt-7 pb-28 sm:pb-24 overflow-x-hidden ${className}`}
     >
       <div className="relative z-10 max-w-5xl mx-auto">{children}</div>
     </motion.main>

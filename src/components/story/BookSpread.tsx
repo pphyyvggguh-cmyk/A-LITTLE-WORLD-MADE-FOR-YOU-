@@ -399,6 +399,7 @@ export function BookSpread({
         onPointerCancel={handlePointerCancel}
         onClickCapture={handleClickCapture}
         data-testid="memory-book-spread"
+        data-no-chapter-swipe="true"
         className={`book-open-binding relative rounded-xl sm:rounded-2xl p-1.5 sm:p-3 md:p-4 select-none ${
           dragCurl ? 'touch-none cursor-grabbing' : 'touch-pan-y cursor-pointer'
         }`}

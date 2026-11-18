@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { BookmarkCheck, BookOpen, Flower2, Lock, X } from 'lucide-react';
+import { BookmarkCheck, BookOpen, Flower2, Lock, RotateCcw, X } from 'lucide-react';
 import { FLOWERS_DATA } from '../data/flowers';
 import { useStore } from '../store/useStore';
 import { EASE_OUT_EXPO } from '../utils/animation';
@@ -25,6 +25,8 @@ export function ContentsDrawer({
   const rewardClaimed = useStore((s) => s.rewardClaimed);
   const navigateTo = useStore((s) => s.navigateTo);
   const setQuestModalOpen = useStore((s) => s.setQuestModalOpen);
+  const lockExperience = useStore((s) => s.lockExperience);
+  const replayBookIntro = useStore((s) => s.replayBookIntro);
 
   const isRewardUnlocked =
     rewardClaimed || collectedFlowers.length >= FLOWERS_DATA.length;
@@ -200,19 +202,48 @@ export function ContentsDrawer({
                 </span>
               )}
 
-              <a
-                href="/admin"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onClose();
-                  window.history.pushState(null, '', '/admin');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-                className="min-h-[40px] px-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#38271F]/55 hover:text-[#743D4A] transition-colors whitespace-nowrap"
-              >
-                <Lock className="w-3 h-3" />
-                <span>Control Room</span>
-              </a>
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    replayBookIntro();
+                  }}
+                  className="min-h-[40px] px-2 inline-flex items-center gap-1 text-xs font-medium text-[#38271F]/55 hover:text-[#A6533B] transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Putar Intro</span>
+                </button>
+                <span aria-hidden="true" className="text-[#38271F]/25">
+                  ·
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    lockExperience();
+                  }}
+                  className="min-h-[40px] px-2 inline-flex items-center gap-1 text-xs font-medium text-[#38271F]/55 hover:text-[#A6533B] transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  <Lock className="w-3 h-3" />
+                  <span>Kunci Buku</span>
+                </button>
+                <span aria-hidden="true" className="text-[#38271F]/25">
+                  ·
+                </span>
+                <a
+                  href="/admin"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onClose();
+                    window.history.pushState(null, '', '/admin');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  className="min-h-[40px] px-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#38271F]/55 hover:text-[#743D4A] transition-colors whitespace-nowrap"
+                >
+                  <span>Control Room</span>
+                </a>
+              </div>
             </footer>
           </motion.div>
         </div>

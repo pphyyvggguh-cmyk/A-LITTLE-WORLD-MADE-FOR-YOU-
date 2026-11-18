@@ -6,10 +6,20 @@ import dotenv from 'dotenv';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
+import { GoogleGenAI, Type } from '@google/genai';
 import {
   sanitizeUploadBasename,
   validateMediaFilenameAndType,
 } from './src/utils/adminContent.ts';
+import {
+  parseMiniOktafApiResult,
+  sanitizeExpression,
+  sanitizePose,
+  trimChatHistory,
+  VALID_OKTAF_EXPRESSIONS,
+  VALID_OKTAF_POSES,
+  validateUserChatPrompt,
+} from './src/utils/miniOktafChat.ts';
 
 dotenv.config();
 
@@ -141,6 +151,124 @@ async function startServer() {
       serverTimeMs: nowMs,
       iso: new Date(nowMs).toISOString(),
     });
+  });
+
+  app.post('/api/mini-oktaf/chat', async (req: Request, res: Response) => {
+    try {
+      const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+      if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+        res.status(503).json({
+          ok: false,
+          code: 'AI_NOT_CONFIGURED',
+          error:
+            'Fitur ngobrol AI Mini Oktaf belum aktif karena GEMINI_API_KEY belum diatur di server.',
+        });
+        return;
+      }
+
+      const rawMessages = Array.isArray(req.body?.messages) ? req.body.messages : [];
+      const history = trimChatHistory(rawMessages);
+      const lastTurn = history[history.length - 1];
+      if (!lastTurn || lastTurn.role !== 'user') {
+        res.status(400).json({
+          ok: false,
+          code: 'INVALID_PROMPT',
+          error: 'Kirim pesan teks terlebih dahulu untuk mengobrol dengan Mini Oktaf.',
+        });
+        return;
+      }
+
+      const promptCheck = validateUserChatPrompt(lastTurn.text);
+      if (!promptCheck.ok) {
+        res.status(400).json({
+          ok: false,
+          code: 'INVALID_PROMPT',
+          error: promptCheck.error,
+        });
+        return;
+      }
+
+      const currentChapter = String(req.body?.currentChapter || 'hub').slice(0, 40);
+      const flowerCount = Math.max(0, Math.min(7, Number(req.body?.collectedFlowerCount || 0) || 0));
+
+      const chapterContextMap: Record<string, string> = {
+        hub: 'Bab 00: Beranda Jurnal (Halaman pembuka buku dan Daftar Bab)',
+        story: 'Bab 01: Our Story (Buku scrapbook 17 halaman berisi Polaroid kenangan dan amplop Secret Note)',
+        world: 'Bab 02: Our World (Bola dunia 3D berisi 20 kota impian)',
+        letters: 'Bab 03: Birthday Letters (Amplop surat dan doa pribadi untuk Wulan)',
+        video: 'Bab 04: Birthday Video (Ruang putar video ucapan ulang tahun)',
+        voices: 'Bab 05: Voices of Love (Ucapan suara dari sahabat-sahabat terdekat Wulan)',
+        wishlist: 'Bab 06: Our Future Wishlist (Daftar impian & rencana masa depan berdua)',
+        postcards: 'Bab 07: Postcards From The Future (Kartu pos waktu bersegel tanggal buka)',
+        reward: 'Bab 08: Secret Meadow (Taman rahasia setelah 7 bunga terkumpul)',
+      };
+
+      const systemInstruction = [
+        'Kamu adalah Mini Oktaf, karakter pendamping kecil di dalam website buku cerita ulang tahun berjudul "A LITTLE WORLD MADE FOR YOU ♡" yang dibuat oleh Oktaf khusus untuk Wulan.',
+        'Kepribadianmu: hangat, tulus, santai, sedikit playful, sopan, dan berbicara seperti manusia sungguhan dalam bahasa Indonesia sehari-hari yang lembut (jangan kaku, jangan lebay/cringe, jangan terlalu berbunga-bunga berlebihan).',
+        'Fakta penting yang HARUS akurat:',
+        '- Hari ulang tahun Wulan adalah 19 Februari (19 Februari 2009).',
+        '- Tanggal jadian / hari spesial hubungan Oktaf & Wulan adalah 2 Mei 2026 (bedakan jelas dengan hari ulang tahun!).',
+        '- Buku cerita ini punya Bab 00 (Beranda Jurnal) sampai Bab 07 (Postcards From The Future), serta Bab 08 (Secret Meadow) jika 7 bunga tersembunyi sudah ditemukan.',
+        `- Saat ini Wulan sedang berada di: ${chapterContextMap[currentChapter] ?? chapterContextMap.hub}.`,
+        `- Jumlah bunga tersembunyi yang sudah ditemukan Wulan: ${flowerCount} dari 7 bunga.`,
+        '- Aturan Secret Quest: Jangan beri tahu lokasi persis semua bunga sekaligus kalau tidak diminta sedikit petunjuk, cukup kasih petunjuk halus sesuai bab kalau ditanya (bunga ada tersebar di Beranda, Our Story, Our World, Birthday Letters, Birthday Video, Voices of Love, dan Wishlist; ketuk dua kali Mini Oktaf membuka tracker misi).',
+        '- Jangan pernah membocorkan kode sandi buku, data sensitif, atau hal teknis server/admin.',
+        '- Jawab singkat dan akrab (maksimal 1 sampai 3 paragraf pendek).',
+      ].join('\n');
+
+      const ai = new GoogleGenAI({ apiKey });
+      const contents = history.map((turn) => ({
+        role: turn.role === 'assistant' ? ('model' as const) : ('user' as const),
+        parts: [{ text: turn.text }],
+      }));
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-4-hydrogen',
+        contents,
+        config: {
+          httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              reply: {
+                type: Type.STRING,
+                description: 'Balasan hangat Mini Oktaf dalam bahasa Indonesia yang natural.',
+              },
+              pose: {
+                type: Type.STRING,
+                enum: Array.from(VALID_OKTAF_POSES),
+              },
+              expression: {
+                type: Type.STRING,
+                enum: Array.from(VALID_OKTAF_EXPRESSIONS),
+              },
+            },
+            required: ['reply', 'pose', 'expression'],
+          },
+        },
+      });
+
+      const rawText = response.text || '';
+      const parsed = parseMiniOktafApiResult(rawText);
+
+      res.json({
+        ok: true,
+        reply: parsed.reply,
+        pose: sanitizePose(parsed.pose, 'waving'),
+        expression: sanitizeExpression(parsed.expression, 'happy'),
+      });
+    } catch (err) {
+      console.error('Mini Oktaf Gemini error:', err);
+      res.status(500).json({
+        ok: false,
+        code: 'AI_REQUEST_FAILED',
+        error:
+          'Mini Oktaf lagi agak lemot koneksinya sebentar. Coba kirim lagi dalam beberapa detik ya.',
+      });
+    }
   });
 
   app.post('/api/upload', (req: Request, res: Response, next: NextFunction) => {

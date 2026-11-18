@@ -117,11 +117,6 @@ export const SECTION_DIALOGUES: Record<string, OktafDialogueEntry> = {
     expression: 'shy',
     message: 'Kartu pos yang masih tersegel ini baru bisa dibuka pas harinya nanti ya ♡',
   },
-  calendar: {
-    pose: 'pointing',
-    expression: 'happy',
-    message: 'Semua tanggal penting dan rencana kita kumpul di kalender ini ♡',
-  },
   reward: {
     pose: 'celebrating',
     expression: 'laughing',
@@ -164,11 +159,6 @@ export const HUB_CARD_REACTIONS: Record<string, OktafDialogueEntry> = {
     pose: 'gift',
     expression: 'happy',
     message: 'Surat-surat kecil yang disimpan khusus buat dibuka di tanggal tertentu.',
-  },
-  calendar: {
-    pose: 'pointing',
-    expression: 'wink',
-    message: 'Cek tanggal penting dan momen yang paling dekat di kalender ini.',
   },
 };
 

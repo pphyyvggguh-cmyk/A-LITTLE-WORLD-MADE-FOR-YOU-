@@ -405,7 +405,7 @@ export const MEMORY_BOOK_PAGES: MemoryBookPage[] = [
     layoutType: 'ticket-stubs-arrangement',
     paperTint: 'ivory',
     envelopeId: 'env-page-08',
-    extraTags: ['BOARDING PASS · NO. 0204', 'SEAT · ALWAYS WITH YOU'],
+    extraTags: ['BOARDING PASS · NO. 1902', 'SEAT · ALWAYS WITH YOU'],
     polaroids: [
       {
         id: 'pol-08a',
@@ -650,7 +650,7 @@ export const MEMORY_BOOK_PAGES: MemoryBookPage[] = [
         id: 'pol-14',
         image: '/assets/photos/memories/memory-14.svg',
         title: 'Untuk Kamu',
-        date: '02 April 2026',
+        date: '19 Februari',
         location: 'Dunia Kecil Kita',
         caption: 'Selamat ulang tahun, Wulan ♡',
         story:
@@ -770,7 +770,7 @@ export const MEMORY_BOOK_PAGES: MemoryBookPage[] = [
         id: 'pol-17',
         image: '/assets/photos/memories/memory-17.svg',
         title: 'Lembar Selanjutnya',
-        date: '02 April 2026 · ∞',
+        date: '19 Februari · ∞',
         location: 'Masa Depan Kita',
         caption: 'Untuk cerita yang terus berlanjut',
         story:

@@ -139,6 +139,19 @@ function normalizeDocId(raw: string): string {
   return cleaned || `item-${Date.now()}`;
 }
 
+function normalizeLegacySeedDateText(value: string | undefined): string | undefined {
+  if (typeof value !== 'string') return value;
+  const map: Record<string, string> = {
+    '02 April 2026': '19 Februari',
+    '02 April 2026 · ∞': '19 Februari · ∞',
+    'WULAN · 02.04': 'WULAN · 19.02',
+    'TIKET · 02.04.26': 'TIKET · 19.02',
+    'BOARDING PASS · NO. 0204': 'BOARDING PASS · NO. 1902',
+    '02 · APR · 26': '19 · FEB',
+  };
+  return map[value] ?? value;
+}
+
 export async function fetchSiteContent(adminView = false): Promise<SiteContentPayload> {
   const defaults: SiteContentPayload = {
     storyPages: structuredClone(MEMORY_BOOK_PAGES),
@@ -174,7 +187,18 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     const data = storySnap.data();
     const pages = data?.payload?.pages;
     if (Array.isArray(pages) && pages.length === 17) {
-      defaults.storyPages = pages as MemoryBookPage[];
+      defaults.storyPages = (pages as MemoryBookPage[]).map((page) => ({
+        ...page,
+        extraTags: Array.isArray(page.extraTags)
+          ? page.extraTags.map((tag) => normalizeLegacySeedDateText(tag) ?? tag)
+          : page.extraTags,
+        polaroids: Array.isArray(page.polaroids)
+          ? page.polaroids.map((pol) => ({
+              ...pol,
+              date: normalizeLegacySeedDateText(pol.date) ?? pol.date,
+            }))
+          : page.polaroids,
+      }));
     }
     secretNotesSeededInDb = Boolean(data?.payload?.secretNotesSeeded);
     trackLatest(timestampToIso(data?.updatedAt));
@@ -193,7 +217,11 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     const data = lettersSnap.data();
     const letters = data?.payload?.letters;
     if (Array.isArray(letters)) {
-      defaults.letters = letters as BirthdayLetter[];
+      defaults.letters = (letters as BirthdayLetter[]).map((letter) => ({
+        ...letter,
+        dateLabel: normalizeLegacySeedDateText(letter.dateLabel) ?? letter.dateLabel,
+        stampText: normalizeLegacySeedDateText(letter.stampText) ?? letter.stampText,
+      }));
     }
     trackLatest(timestampToIso(data?.updatedAt));
   }
@@ -201,7 +229,11 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
   if (videoSnap?.exists()) {
     const data = videoSnap.data();
     if (data?.payload?.videoConfig) {
-      defaults.videoConfig = { ...defaults.videoConfig, ...data.payload.videoConfig };
+      const mergedVideo = { ...defaults.videoConfig, ...data.payload.videoConfig };
+      defaults.videoConfig = {
+        ...mergedVideo,
+        ticketLabel: normalizeLegacySeedDateText(mergedVideo.ticketLabel) ?? mergedVideo.ticketLabel,
+      };
     }
     trackLatest(timestampToIso(data?.updatedAt));
   }
@@ -313,7 +345,7 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
         pageNumber: typeof raw.pageNumber === 'number' ? raw.pageNumber : 1,
         enabled: Boolean(raw.enabled),
         sealColor: String(raw.sealColor || '#A6533B'),
-        stampText: String(raw.stampText || 'SECRET NOTE'),
+        stampText: normalizeLegacySeedDateText(String(raw.stampText || 'SECRET NOTE')) || 'SECRET NOTE',
         createdAt: timestampToIso(raw.createdAt),
         updatedAt: updated,
       });

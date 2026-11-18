@@ -39,7 +39,7 @@ export function BirthdayWelcome() {
           className="inline-flex items-center gap-2 editorial-kicker"
         >
           <Heart className="w-3.5 h-3.5 fill-[#E8BFC5] text-[#743D4A]" />
-          <span>02 April 2026</span>
+          <span>19 Februari</span>
           <Heart className="w-3.5 h-3.5 fill-[#E8BFC5] text-[#743D4A]" />
         </motion.div>
 

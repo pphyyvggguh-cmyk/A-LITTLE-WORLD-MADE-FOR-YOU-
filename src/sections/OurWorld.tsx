@@ -142,7 +142,10 @@ function Fallback2DMap({
   const p2 = project(to.lat, to.lng);
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-4 bg-[#122436]">
+    <div
+      data-no-chapter-swipe="true"
+      className="w-full h-full flex items-center justify-center p-4 bg-[#122436]"
+    >
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full max-w-4xl h-auto rounded-xl border border-[#F4EBDD]/15 bg-[#15314B] shadow-2xl"
@@ -806,7 +809,7 @@ export function OurWorld() {
 
   return (
     <main
-      className="relative w-full h-[calc(100dvh-3.5rem)] overflow-hidden bg-[#0C1624] text-[#F4EBDD]"
+      className="relative w-full h-full overflow-hidden bg-[#0C1624] text-[#F4EBDD]"
       data-testid="our-world-section"
       data-selected-city={selectedDestination.city}
     >
@@ -815,6 +818,7 @@ export function OurWorld() {
         <div
           ref={canvasMountRef}
           data-testid="earth-canvas-mount"
+          data-no-chapter-swipe="true"
           className="absolute inset-0 w-full h-full touch-none"
         />
       ) : (
@@ -848,6 +852,7 @@ export function OurWorld() {
         {cardOpen && (
           <motion.div
             key={selectedDestination.id}
+            data-no-chapter-swipe="true"
             initial={{ opacity: 0, x: 16, scale: 0.96 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 16, scale: 0.96 }}
@@ -906,7 +911,10 @@ export function OurWorld() {
       </AnimatePresence>
 
       {/* Collapsible Bottom Control Dock (Zero Central Viewport, Vinyl Player & Mini Oktaf Occlusion) */}
-      <div className="absolute bottom-[4.75rem] sm:bottom-5 left-3 sm:left-1/2 sm:-translate-x-1/2 z-20 w-[calc(100vw-1.5rem)] sm:w-[min(540px,calc(100vw-24rem))]">
+      <div
+        data-no-chapter-swipe="true"
+        className="absolute bottom-[4.75rem] sm:bottom-5 left-3 sm:left-1/2 sm:-translate-x-1/2 z-20 w-[calc(100vw-1.5rem)] sm:w-[min(540px,calc(100vw-24rem))]"
+      >
         <div className="flex justify-center mb-1.5">
           <button
             type="button"

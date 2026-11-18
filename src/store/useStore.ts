@@ -17,6 +17,18 @@ import {
 
 import { useContentStore } from './useContentStore';
 
+import {
+  buildChapterUrlPath,
+  getChapterTransitionDirection,
+  resolveChapterFromLocation,
+  resolvePostUnlockSection,
+} from '../utils/storybookNav';
+import {
+  hasBookIntroPlayed,
+  markBookIntroPlayed,
+  shouldPlayBookIntroOnEntry,
+} from '../utils/bookIntro';
+
 export type AppSection =
   | 'password'
   | 'welcome'
@@ -28,7 +40,6 @@ export type AppSection =
   | 'voices'
   | 'wishlist'
   | 'postcards'
-  | 'calendar'
   | 'reward';
 
 interface OktafUIState {
@@ -41,6 +52,7 @@ interface OktafUIState {
 
 interface AppState {
   currentSection: AppSection;
+  chapterDirection: 1 | -1;
   isUnlocked: boolean;
   collectedFlowers: string[];
   questDiscovered: boolean;
@@ -52,10 +64,12 @@ interface AppState {
   tapReactionIndex: number;
   oktaf: OktafUIState;
   justCollectedFlowerId: string | null;
+  bookIntroActive: boolean;
+  bookIntroRunId: number;
 
   unlockWithPassword: (password: string) => boolean;
   enterFromWelcome: () => void;
-  navigateTo: (section: AppSection) => void;
+  navigateTo: (section: AppSection, options?: { syncHistory?: boolean }) => void;
   setSelectedMemoryId: (id: string | null) => void;
   setSelectedDestinationId: (id: string) => void;
   setOktafDialogue: (pose: OktafPose, expression: OktafExpression, message: string) => void;
@@ -67,6 +81,8 @@ interface AppState {
   collectFlower: (flowerId: string) => boolean;
   claimReward: () => void;
   lockExperience: () => void;
+  completeBookIntro: () => void;
+  replayBookIntro: () => void;
 }
 
 const persisted = loadPersistedState();
@@ -75,11 +91,22 @@ const hasAutostart =
   new URLSearchParams(window.location.search).get('autostart') === '1';
 
 const initialUnlocked = hasAutostart || persisted.isUnlocked;
-const initialSection: AppSection = hasAutostart
-  ? 'hub'
-  : persisted.isUnlocked
-    ? 'hub'
-    : 'password';
+const initialRewardUnlocked = isFlowerQuestComplete(persisted.collectedFlowers);
+const urlChapter =
+  typeof window !== 'undefined'
+    ? resolveChapterFromLocation(window.location.search, window.location.hash, initialRewardUnlocked)
+    : null;
+const initialSection: AppSection = initialUnlocked ? (urlChapter ?? 'hub') : 'password';
+
+const initialBookIntroActive =
+  typeof window !== 'undefined' &&
+  shouldPlayBookIntroOnEntry({
+    isUnlocked: initialUnlocked,
+    currentSection: initialSection,
+    search: window.location.search,
+    pathname: window.location.pathname,
+    alreadyPlayedInSession: hasBookIntroPlayed(),
+  });
 
 const initialDialogue =
   SECTION_DIALOGUES[initialSection] ?? SECTION_DIALOGUES.hub;
@@ -94,8 +121,13 @@ function syncStorage(state: Pick<AppState, 'isUnlocked' | 'collectedFlowers' | '
   });
 }
 
+function isOnAdminRoute(): boolean {
+  return typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+}
+
 export const useStore = create<AppState>((set, get) => ({
   currentSection: initialSection,
+  chapterDirection: 1,
   isUnlocked: initialUnlocked,
   collectedFlowers: persisted.collectedFlowers,
   questDiscovered: persisted.questDiscovered,
@@ -106,6 +138,8 @@ export const useStore = create<AppState>((set, get) => ({
   selectedDestinationId: 'bandung',
   tapReactionIndex: 0,
   justCollectedFlowerId: null,
+  bookIntroActive: initialBookIntroActive,
+  bookIntroRunId: initialBookIntroActive ? 1 : 0,
   oktaf: {
     pose: initialDialogue.pose,
     expression: initialDialogue.expression,
@@ -123,6 +157,7 @@ export const useStore = create<AppState>((set, get) => ({
       const next = {
         ...state,
         isUnlocked: true,
+        chapterDirection: 1 as const,
         currentSection: 'welcome' as AppSection,
         oktaf: {
           ...state.oktaf,
@@ -136,19 +171,37 @@ export const useStore = create<AppState>((set, get) => ({
       syncStorage(next);
       return next;
     });
+    if (typeof window !== 'undefined' && !isOnAdminRoute()) {
+      window.history.replaceState({ chapter: 'welcome' }, '', '/');
+    }
     return true;
   },
 
   enterFromWelcome: () => {
     const hub = useContentStore.getState().miniOktaf.sectionDialogues.hub ?? SECTION_DIALOGUES.hub;
+    const playIntro =
+      typeof window !== 'undefined'
+        ? shouldPlayBookIntroOnEntry({
+            isUnlocked: true,
+            currentSection: 'hub',
+            search: window.location.search,
+            pathname: window.location.pathname,
+            alreadyPlayedInSession: hasBookIntroPlayed(),
+          })
+        : false;
+
     set((state) => {
       const visited = state.visitedSections.includes('hub')
         ? state.visitedSections
         : [...state.visitedSections, 'hub'];
       const next = {
         ...state,
+        isUnlocked: true,
+        chapterDirection: 1 as const,
         currentSection: 'hub' as AppSection,
         visitedSections: visited,
+        bookIntroActive: playIntro,
+        bookIntroRunId: playIntro ? state.bookIntroRunId + 1 : state.bookIntroRunId,
         oktaf: {
           ...state.oktaf,
           pose: hub.pose,
@@ -160,24 +213,47 @@ export const useStore = create<AppState>((set, get) => ({
       syncStorage(next);
       return next;
     });
+    if (typeof window !== 'undefined' && !isOnAdminRoute()) {
+      window.history.replaceState({ chapter: 'hub' }, '', buildChapterUrlPath('hub'));
+    }
   },
 
-  navigateTo: (section: AppSection) => {
+  navigateTo: (section: AppSection, options) => {
+    const stateNow = get();
+    const rewardUnlocked = isFlowerQuestComplete(stateNow.collectedFlowers);
+
     // Guard final reward until 7/7 flowers are collected
-    if (section === 'reward' && !isFlowerQuestComplete(get().collectedFlowers)) {
+    if (section === 'reward' && !rewardUnlocked) {
       set({ questModalOpen: true });
       return;
     }
 
+    // Never allow Back navigation or chapter calls to re-enter password/welcome once unlocked
+    const safeTarget = stateNow.isUnlocked
+      ? resolvePostUnlockSection(section, true, rewardUnlocked)
+      : section;
+
+    if (safeTarget === stateNow.currentSection) {
+      set({ questModalOpen: false });
+      return;
+    }
+
+    const direction = getChapterTransitionDirection(
+      stateNow.currentSection,
+      safeTarget,
+      rewardUnlocked
+    );
+
     const liveDialogues = useContentStore.getState().miniOktaf.sectionDialogues;
-    const dlg = liveDialogues[section] ?? SECTION_DIALOGUES[section] ?? SECTION_DIALOGUES.hub;
+    const dlg = liveDialogues[safeTarget] ?? SECTION_DIALOGUES[safeTarget] ?? SECTION_DIALOGUES.hub;
     set((state) => {
-      const visited = state.visitedSections.includes(section)
+      const visited = state.visitedSections.includes(safeTarget)
         ? state.visitedSections
-        : [...state.visitedSections, section];
+        : [...state.visitedSections, safeTarget];
       const next = {
         ...state,
-        currentSection: section,
+        currentSection: safeTarget,
+        chapterDirection: direction,
         selectedMemoryId: null,
         questModalOpen: false,
         visitedSections: visited,
@@ -192,6 +268,17 @@ export const useStore = create<AppState>((set, get) => ({
       syncStorage(next);
       return next;
     });
+
+    const syncHistory = options?.syncHistory !== false;
+    if (
+      syncHistory &&
+      typeof window !== 'undefined' &&
+      !isOnAdminRoute() &&
+      safeTarget !== 'password' &&
+      safeTarget !== 'welcome'
+    ) {
+      window.history.pushState({ chapter: safeTarget }, '', buildChapterUrlPath(safeTarget));
+    }
   },
 
   setSelectedMemoryId: (id) => set({ selectedMemoryId: id }),
@@ -315,6 +402,7 @@ export const useStore = create<AppState>((set, get) => ({
         ...state,
         rewardClaimed: true,
         questModalOpen: false,
+        chapterDirection: 1 as const,
         currentSection: 'reward' as AppSection,
         oktaf: {
           ...state.oktaf,
@@ -328,6 +416,9 @@ export const useStore = create<AppState>((set, get) => ({
       syncStorage(next);
       return next;
     });
+    if (typeof window !== 'undefined' && !isOnAdminRoute()) {
+      window.history.pushState({ chapter: 'reward' }, '', buildChapterUrlPath('reward'));
+    }
   },
 
   lockExperience: () => {
@@ -335,10 +426,33 @@ export const useStore = create<AppState>((set, get) => ({
       const next = {
         ...state,
         isUnlocked: false,
+        bookIntroActive: false,
+        chapterDirection: -1 as const,
         currentSection: 'password' as AppSection,
       };
       syncStorage(next);
       return next;
     });
+    if (typeof window !== 'undefined' && !isOnAdminRoute()) {
+      window.history.replaceState({ chapter: 'password' }, '', '/');
+    }
+  },
+
+  completeBookIntro: () => {
+    markBookIntroPlayed();
+    set({ bookIntroActive: false });
+  },
+
+  replayBookIntro: () => {
+    const stateNow = get();
+    if (!stateNow.isUnlocked) return;
+    if (stateNow.currentSection !== 'hub') {
+      get().navigateTo('hub');
+    }
+    set((state) => ({
+      bookIntroActive: true,
+      bookIntroRunId: state.bookIntroRunId + 1,
+      questModalOpen: false,
+    }));
   },
 }));

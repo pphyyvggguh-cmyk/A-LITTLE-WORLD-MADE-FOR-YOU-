@@ -93,7 +93,7 @@ export const DEFAULT_SECRET_NOTES: StorySecretNote[] = [
     pageNumber: 14,
     enabled: true,
     sealColor: '#A6533B',
-    stampText: '02 · APR · 26',
+    stampText: '19 · FEB',
     createdAt: '2026-04-02T00:00:00.000Z',
     updatedAt: '2026-04-02T00:00:00.000Z',
   },
