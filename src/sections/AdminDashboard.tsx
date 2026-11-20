@@ -8,14 +8,18 @@ import {
   Flower2,
   FolderOpen,
   Globe2,
+  Heart,
   LayoutDashboard,
   LogOut,
   Mail,
   MessageSquareHeart,
   Send,
+  Sparkles,
 } from 'lucide-react';
 import { AdminAuthGate } from '../components/admin/AdminAuthGate';
 import { AdminOverview, AdminTabId } from '../components/admin/AdminOverview';
+import { HeartGalleryManager } from '../components/admin/HeartGalleryManager';
+import { JarManager } from '../components/admin/JarManager';
 import { LettersManager } from '../components/admin/LettersManager';
 import { MediaLibraryManager } from '../components/admin/MediaLibraryManager';
 import { MiniOktafManager } from '../components/admin/MiniOktafManager';
@@ -35,11 +39,14 @@ import {
   subscribePostcardEnvelopes,
   subscribeWishlistEntries,
 } from '../utils/adminApi';
+import { subscribeJarAdminData } from '../utils/jarApi';
+import { summarizeJarStats } from '../utils/jarOfThoughts';
 import { SiteContentPayload } from '../utils/adminContent';
 import {
   ensureFirebaseBootstrapped,
   importJsonBackupToFirestore,
 } from '../utils/firebaseMigration';
+import { formatSafeUiError } from '../utils/safeError';
 
 interface AdminDashboardProps {
   onExitToPublic: () => void;
@@ -56,6 +63,8 @@ const ADMIN_TABS: { id: AdminTabId; label: string; icon: typeof LayoutDashboard 
   { id: 'vinyl', label: 'Vinyl Player', icon: Disc3 },
   { id: 'wishlist', label: 'Wishlist', icon: CalendarHeart },
   { id: 'postcards', label: 'Postcards', icon: Send },
+  { id: 'jar', label: 'Jar of Thoughts', icon: Sparkles },
+  { id: 'heart-gallery', label: 'Heart Gallery', icon: Heart },
   { id: 'media', label: 'Media Library', icon: FolderOpen },
 ];
 
@@ -72,6 +81,7 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
   const secretNotes = useContentStore((s) => s.secretNotes);
   const vinylConfig = useContentStore((s) => s.vinylConfig);
   const vinylPlaylist = useContentStore((s) => s.vinylPlaylist);
+  const heartGallery = useContentStore((s) => s.heartGallery);
   const updatedAt = useContentStore((s) => s.updatedAt);
 
   const [loadingCloud, setLoadingCloud] = useState(false);
@@ -80,6 +90,7 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
   const [mediaAssets, setMediaAssets] = useState<MediaAssetItem[]>([]);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [postcardsCount, setPostcardsCount] = useState(0);
+  const [jarStats, setJarStats] = useState({ total: 0, pending: 0, availableInPool: 0 });
 
   const loadAdminCloudData = useCallback(async () => {
     if (!user || !isAdmin) return;
@@ -96,9 +107,11 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
       setMediaAssets(media);
     } catch (err) {
       setCloudError(
-        err instanceof Error
-          ? err.message
-          : 'Tidak dapat memuat data Control Room dari Firebase.'
+        formatSafeUiError(
+          err,
+          'Tidak dapat memuat data Control Room dari Firebase.',
+          'admin'
+        )
       );
     } finally {
       setLoadingCloud(false);
@@ -125,9 +138,21 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
       (items) => setPostcardsCount(items.length),
       () => {}
     );
+    const unsubJar = subscribeJarAdminData(
+      ({ thoughts }) => {
+        const s = summarizeJarStats(thoughts);
+        setJarStats({
+          total: s.total,
+          pending: s.pending,
+          availableInPool: s.availableInPool,
+        });
+      },
+      () => {}
+    );
     return () => {
       unsubWish();
       unsubPostcards();
+      unsubJar();
     };
   }, [authReady, isAdmin, user?.email]);
 
@@ -218,6 +243,7 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
     secretNotes,
     vinylConfig,
     vinylPlaylist,
+    heartGallery,
     updatedAt,
   };
 
@@ -293,6 +319,7 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
             mediaAssets={mediaAssets}
             wishlistCount={wishlistCount}
             postcardsCount={postcardsCount}
+            jarStats={jarStats}
             onSelectTab={setActiveTab}
             onOpenPublicSite={onExitToPublic}
             onImportBackupJson={handleImportBackup}
@@ -357,6 +384,17 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
         {activeTab === 'wishlist' && <WishlistManager />}
 
         {activeTab === 'postcards' && <PostcardsManager />}
+
+        {activeTab === 'jar' && <JarManager />}
+
+        {activeTab === 'heart-gallery' && (
+          <HeartGalleryManager
+            photos={heartGallery}
+            mediaAssets={mediaAssets}
+            onSaved={handleSavedContent}
+            onMediaRefresh={refreshMedia}
+          />
+        )}
 
         {activeTab === 'media' && (
           <MediaLibraryManager mediaAssets={mediaAssets} onRefresh={refreshMedia} />

@@ -113,10 +113,10 @@ export function LivingStorybookLayer({
       {has('bird') && (
         <div
           style={{ transform: 'translate3d(0, var(--sb-parallax-y, 0px), 0)' }}
-          className="absolute top-16 right-2 sm:top-20 sm:right-6 xl:right-10 opacity-75 sm:opacity-85"
+          className="hidden md:block absolute top-20 right-6 xl:right-10 opacity-85"
         >
           <div className={floatGentleClass}>
-            <SongbirdSVG className="w-11 h-9 sm:w-14 sm:h-12" />
+            <SongbirdSVG className="w-14 h-12" />
           </div>
         </div>
       )}
@@ -125,11 +125,11 @@ export function LivingStorybookLayer({
       {has('butterfly') && (
         <div
           style={{ transform: 'translate3d(0, calc(var(--sb-parallax-y, 0px) * 1.2), 0)' }}
-          className="absolute top-16 left-2 sm:top-24 sm:left-8 xl:left-14 opacity-75 sm:opacity-85"
+          className="hidden md:block absolute top-24 left-8 xl:left-14 opacity-85"
         >
           <div className={floatSlowClass}>
             <ButterflySVG
-              className="w-8 h-8 sm:w-10 sm:h-10"
+              className="w-10 h-10"
               wingColor={profile.petalTint}
               accentColor={profile.accentTone}
             />
@@ -184,9 +184,9 @@ export function LivingStorybookLayer({
 
       {/* Soft gold watercolor stars in outer edge */}
       {has('star') && (
-        <div className="absolute top-28 right-3 sm:top-32 sm:right-8 opacity-75">
+        <div className="hidden md:block absolute top-32 right-8 opacity-75">
           <div className={floatGentleClass}>
-            <StarClusterSVG className="w-8 h-8 sm:w-10 sm:h-10" />
+            <StarClusterSVG className="w-10 h-10" />
           </div>
         </div>
       )}

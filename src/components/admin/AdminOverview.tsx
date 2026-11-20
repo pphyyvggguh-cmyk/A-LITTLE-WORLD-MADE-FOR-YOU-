@@ -8,13 +8,16 @@ import {
   Flower2,
   FolderOpen,
   Globe2,
+  Heart,
   Mail,
   MessageSquareHeart,
   Send,
+  Sparkles,
   Upload,
 } from 'lucide-react';
 import { MediaAssetItem } from '../../utils/adminApi';
 import { SiteContentPayload } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 
 export type AdminTabId =
   | 'overview'
@@ -27,6 +30,8 @@ export type AdminTabId =
   | 'vinyl'
   | 'wishlist'
   | 'postcards'
+  | 'jar'
+  | 'heart-gallery'
   | 'media';
 
 interface AdminOverviewProps {
@@ -35,6 +40,7 @@ interface AdminOverviewProps {
   mediaAssets: MediaAssetItem[];
   wishlistCount: number;
   postcardsCount: number;
+  jarStats?: { total: number; pending: number; availableInPool: number };
   onSelectTab: (tab: AdminTabId) => void;
   onOpenPublicSite: () => void;
   onImportBackupJson: (raw: unknown) => Promise<{ importedSections: string[]; importedVoices: number }>;
@@ -45,6 +51,7 @@ export function AdminOverview({
   mediaCount,
   wishlistCount,
   postcardsCount,
+  jarStats,
   onSelectTab,
   onOpenPublicSite,
   onImportBackupJson,
@@ -74,7 +81,7 @@ export function AdminOverview({
     } catch (err) {
       setImportStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'File JSON cadangan tidak valid.',
+        text: formatSafeUiError(err, 'File JSON cadangan tidak valid.', 'admin'),
       });
     } finally {
       setImporting(false);
@@ -159,6 +166,22 @@ export function AdminOverview({
       stat: `${postcardsCount} Kartu Pos`,
       detail: 'Tulis kartu pos bertanggal buka, kelola segel waktu, foto, motif, dan urutan tampil.',
       icon: Send,
+      accent: '#743D4A',
+    },
+    {
+      tab: 'jar',
+      title: 'Jar Full of Thoughts Manager',
+      stat: `${jarStats?.availableInPool ?? 0} Siap · ${jarStats?.pending ?? 0} Pending`,
+      detail: 'Moderasi kiriman teman, salin link publik, tambah pesan manual, & atur cooldown 24 jam.',
+      icon: Sparkles,
+      accent: '#A6533B',
+    },
+    {
+      tab: 'heart-gallery',
+      title: 'Heart Gallery Manager',
+      stat: `${(content.heartGallery || []).length} Foto Susunan Hati`,
+      detail: 'Kelola foto hadiah Quest 3 (Our Little Heart Gallery), 6 tema bingkai, caption & urutan.',
+      icon: Heart,
       accent: '#743D4A',
     },
     {

@@ -3,6 +3,7 @@ import { Save } from 'lucide-react';
 import { BirthdayVideoConfig } from '../../data/video';
 import { MediaAssetItem, saveBirthdayVideo } from '../../utils/adminApi';
 import { SiteContentPayload } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 import { MediaPickerControl } from './MediaPickerControl';
 
 interface VideoManagerProps {
@@ -36,7 +37,7 @@ export function VideoManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan pengaturan video.',
+        text: formatSafeUiError(err, 'Gagal menyimpan pengaturan video.', 'admin'),
       });
     } finally {
       setSaving(false);

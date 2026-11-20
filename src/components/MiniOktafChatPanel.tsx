@@ -10,12 +10,14 @@ import {
   requestMiniOktafChatReply,
   validateUserChatPrompt,
 } from '../utils/miniOktafChat';
+import { formatSafeUiError } from '../utils/safeError';
 
 const CHAT_SESSION_STORAGE_KEY = 'alittleworld_mini_oktaf_chat_v1';
 
 const STARTER_PROMPTS = [
   'Ceritain dong soal bab ini',
-  'Ada petunjuk bunga rahasia?',
+  'Kasih petunjuk Secret Quest ya',
+  'Aku lupa petunjuk Polaroid terakhir',
   'Ucapan buat 19 Februari ♡',
 ];
 
@@ -39,6 +41,9 @@ interface MiniOktafChatPanelProps {
 export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
   const currentSection = useStore((s) => s.currentSection);
   const collectedFlowers = useStore((s) => s.collectedFlowers);
+  const quest2Step = useStore((s) => s.quest2Step);
+  const quest2Completed = useStore((s) => s.quest2Completed);
+  const collectedPolaroids = useStore((s) => s.collectedPolaroids);
   const oktaf = useStore((s) => s.oktaf);
   const setOktafDialogue = useStore((s) => s.setOktafDialogue);
 
@@ -102,6 +107,11 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
         messages: nextHistory,
         currentChapter: currentSection,
         collectedFlowerCount: collectedFlowers.length,
+        collectedFlowerIds: collectedFlowers,
+        quest2Step,
+        quest2Completed,
+        collectedPolaroidCount: collectedPolaroids.length,
+        collectedPolaroidIds: collectedPolaroids,
       });
 
       const botMsg: MiniOktafChatMessage = {
@@ -117,9 +127,11 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
       setOktafDialogue(reply.pose, reply.expression, reply.reply);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Mini Oktaf belum bisa membalas sekarang. Coba lagi sebentar ya.'
+        formatSafeUiError(
+          err,
+          'Mini Oktaf belum bisa membalas sekarang. Coba lagi sebentar ya.',
+          'public'
+        )
       );
     } finally {
       setSending(false);
@@ -154,22 +166,22 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 12, scale: 0.96 }}
           transition={{ duration: 0.24, ease: EASE_OUT_EXPO }}
-          className="fixed bottom-[168px] right-3 sm:bottom-5 sm:right-[156px] z-50 w-[min(350px,calc(100vw-1.5rem))] h-[min(410px,calc(100dvh-220px))] sm:h-[min(430px,64dvh)] flex flex-col rounded-2xl bg-[#FBF6EE] text-[#38271F] border border-[#38271F]/18 shadow-polaroid-lifted overflow-hidden"
+          className="fixed bottom-[198px] right-3 md:bottom-5 md:right-[156px] z-50 w-[min(350px,calc(100vw-1.5rem))] h-[min(390px,calc(100dvh-256px))] md:h-[min(430px,64dvh)] flex flex-col rounded-2xl bg-[#FFFDFC] text-[#30272A] border border-[#30272A]/14 shadow-polaroid-lifted overflow-hidden"
         >
           {/* Header */}
-          <header className="px-3.5 py-2.5 bg-[#EFE4D1] border-b border-[#38271F]/12 flex items-center justify-between gap-2 shrink-0">
+          <header className="px-3.5 py-2.5 bg-[#F8F1E8] border-b border-[#30272A]/10 flex items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src={exprSrc}
                 alt="Mini Oktaf"
-                className="w-9 h-9 rounded-full object-contain bg-[#FBF6EE] border border-[#38271F]/15 shrink-0"
+                className="w-9 h-9 rounded-full object-contain bg-[#FFFDFC] border border-[#30272A]/12 shrink-0"
               />
               <div className="min-w-0">
-                <p className="font-serif text-sm font-semibold text-[#38271F] flex items-center gap-1 truncate">
+                <p className="font-serif text-sm font-semibold text-[#30272A] flex items-center gap-1 truncate">
                   <span>Ngobrol sama Mini Oktaf</span>
-                  <Sparkles className="w-3 h-3 text-[#A6533B] shrink-0" />
+                  <Sparkles className="w-3 h-3 text-[#A95F70] shrink-0" />
                 </p>
-                <p className="text-[11px] text-[#743D4A] truncate">
+                <p className="text-[11px] text-[#552E3D] truncate">
                   Sedang di: {activeChapterTitle}
                 </p>
               </div>

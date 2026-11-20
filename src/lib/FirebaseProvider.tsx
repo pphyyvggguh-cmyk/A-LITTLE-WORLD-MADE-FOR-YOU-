@@ -52,7 +52,7 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
           configId: 'access',
           adminEmail: data.adminEmail || DEFAULT_ACCESS_CONFIG.adminEmail,
           oktafEmail: data.oktafEmail || DEFAULT_ACCESS_CONFIG.oktafEmail,
-          wulanEmail: data.wulanEmail || '',
+          wulanEmail: data.wulanEmail || DEFAULT_ACCESS_CONFIG.wulanEmail,
           wishlistPrivacyMode:
             data.wishlistPrivacyMode === 'admin-only' ? 'admin-only' : 'couple-only',
           updatedBy: data.updatedBy,
@@ -83,15 +83,45 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
       await refreshAccessConfig(cred.user);
       return cred.user;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('popup-closed-by-user')) {
-        setAuthError('Login dibatalkan sebelum selesai.');
-      } else if (msg.includes('popup-blocked')) {
-        setAuthError('Popup login diblokir oleh browser. Izinkan popup untuk melanjutkan login Google.');
-      } else if (msg.includes('unauthorized-domain')) {
-        setAuthError('Domain ini belum terdaftar di Firebase Authorized Domains.');
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? String((err as { code?: unknown }).code || '')
+          : '';
+      const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+
+      if (import.meta.env.DEV) {
+        console.warn('Google Sign-In failed:', code || msg);
+      }
+
+      if (
+        code === 'auth/popup-closed-by-user' ||
+        code === 'auth/cancelled-popup-request' ||
+        msg.includes('popup-closed-by-user') ||
+        msg.includes('cancelled-popup-request')
+      ) {
+        setAuthError('Login Google dibatalkan sebelum selesai. Silakan coba masuk lagi.');
+      } else if (code === 'auth/popup-blocked' || msg.includes('popup-blocked')) {
+        setAuthError(
+          'Jendela login Google diblokir browser. Izinkan popup atau buka lewat Chrome/Safari utama (bukan browser di dalam aplikasi chat).'
+        );
+      } else if (
+        code === 'auth/unauthorized-domain' ||
+        msg.includes('unauthorized-domain')
+      ) {
+        setAuthError(
+          'Login Google belum aktif di domain ini. Hubungi pemilik website untuk mendaftarkan domain pada Firebase Authorized Domains.'
+        );
+      } else if (
+        code === 'auth/network-request-failed' ||
+        msg.includes('network-request-failed')
+      ) {
+        setAuthError(
+          'Koneksi terganggu saat menghubungkan ke Google. Periksa internet lalu coba lagi.'
+        );
       } else {
-        setAuthError('Gagal masuk dengan akun Google. Pastikan koneksi stabil dan coba lagi.');
+        setAuthError(
+          'Gagal masuk dengan akun Google. Pastikan menggunakan browser utama dan coba lagi.'
+        );
       }
       return null;
     }

@@ -8,6 +8,9 @@ export interface PersistedWorldState {
   questDiscovered: boolean;
   rewardClaimed: boolean;
   visitedSections: string[];
+  quest2Step?: number;
+  quest2Completed?: boolean;
+  collectedPolaroids?: string[];
 }
 
 export const DEFAULT_PERSISTED_STATE: PersistedWorldState = {
@@ -16,6 +19,9 @@ export const DEFAULT_PERSISTED_STATE: PersistedWorldState = {
   questDiscovered: false,
   rewardClaimed: false,
   visitedSections: [],
+  quest2Step: 0,
+  quest2Completed: false,
+  collectedPolaroids: [],
 };
 
 function digestPasscode(raw: string): string {
@@ -68,15 +74,30 @@ export function deserializeState(raw: string | null): PersistedWorldState {
     const uniqueFlowers = Array.isArray(parsed.collectedFlowers)
       ? Array.from(new Set(parsed.collectedFlowers.filter((id): id is string => typeof id === 'string')))
       : [];
+    const uniquePolaroids = Array.isArray(parsed.collectedPolaroids)
+      ? Array.from(new Set(parsed.collectedPolaroids.filter((id): id is string => typeof id === 'string')))
+      : [];
     const visited = Array.isArray(parsed.visitedSections)
       ? Array.from(new Set(parsed.visitedSections.filter((s): s is string => typeof s === 'string')))
       : [];
+    const quest2Completed = Boolean(parsed.quest2Completed);
+    const rawStep = typeof parsed.quest2Step === 'number' && Number.isFinite(parsed.quest2Step)
+      ? Math.max(0, Math.min(3, Math.floor(parsed.quest2Step)))
+      : 0;
     return {
       isUnlocked: Boolean(parsed.isUnlocked),
       collectedFlowers: uniqueFlowers,
-      questDiscovered: Boolean(parsed.questDiscovered) || uniqueFlowers.length > 0,
+      questDiscovered:
+        Boolean(parsed.questDiscovered) ||
+        uniqueFlowers.length > 0 ||
+        uniquePolaroids.length > 0 ||
+        rawStep > 0 ||
+        quest2Completed,
       rewardClaimed: Boolean(parsed.rewardClaimed),
       visitedSections: visited,
+      quest2Step: quest2Completed ? 3 : rawStep,
+      quest2Completed,
+      collectedPolaroids: uniquePolaroids,
     };
   } catch {
     return { ...DEFAULT_PERSISTED_STATE };

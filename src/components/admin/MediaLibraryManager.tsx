@@ -6,6 +6,7 @@ import {
   uploadMediaFile,
 } from '../../utils/adminApi';
 import { MediaKind } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 
 interface MediaLibraryManagerProps {
   mediaAssets: MediaAssetItem[];
@@ -48,7 +49,7 @@ export function MediaLibraryManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal mengunggah file.',
+        text: formatSafeUiError(err, 'Gagal mengunggah file.', 'admin'),
       });
     } finally {
       setUploading(false);
@@ -86,7 +87,7 @@ export function MediaLibraryManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal mengganti file.',
+        text: formatSafeUiError(err, 'Gagal mengganti file.', 'admin'),
       });
     } finally {
       setUploading(false);
@@ -103,7 +104,7 @@ export function MediaLibraryManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menghapus file.',
+        text: formatSafeUiError(err, 'Gagal menghapus file.', 'admin'),
       });
       setConfirmDeleteUrl(null);
     }

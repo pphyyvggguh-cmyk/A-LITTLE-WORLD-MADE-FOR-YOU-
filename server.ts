@@ -12,6 +12,7 @@ import {
   validateMediaFilenameAndType,
 } from './src/utils/adminContent.ts';
 import {
+  buildMiniOktafSystemInstruction,
   parseMiniOktafApiResult,
   sanitizeExpression,
   sanitizePose,
@@ -20,6 +21,14 @@ import {
   VALID_OKTAF_POSES,
   validateUserChatPrompt,
 } from './src/utils/miniOktafChat.ts';
+import { verifyQuest2AnswerLocal } from './src/utils/quests.ts';
+import {
+  buildSubmissionFingerprint,
+  computeCooldownStatus,
+  evaluateSubmissionRateLimit,
+  SlidingRateRecord,
+  validateJarSubmissionInput,
+} from './src/utils/jarOfThoughts.ts';
 
 dotenv.config();
 
@@ -33,6 +42,7 @@ const ROOT_DIR = process.cwd();
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const UPLOADS_DIR = path.join(PUBLIC_DIR, 'assets', 'uploads');
 const PRIMARY_ADMIN_EMAIL = 'oktafmbul0@gmail.com';
+const PRIMARY_WULAN_EMAIL = 'wulanainindya92@gmail.com';
 const MAX_SITE_MEDIA_BYTES = 55 * 1024 * 1024;
 const MAX_IMAGE_ONLY_BYTES = 15 * 1024 * 1024;
 
@@ -153,6 +163,156 @@ async function startServer() {
     });
   });
 
+  // --- A Jar Full of Thoughts: Server Rate-Limiting, Sanitization & Concurrency Guards ---
+  const jarRateLimitStore = new Map<string, SlidingRateRecord>();
+  let jarRevealLockUntilMs = 0;
+  let jarServerLastOpenedMs: number | null = null;
+
+  function getClientIpKey(req: Request): string {
+    const forwarded = req.headers['x-forwarded-for'];
+    const rawIp =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0].trim()
+        : req.socket.remoteAddress || 'local';
+    return crypto.createHash('sha256').update(rawIp).digest('hex').slice(0, 24);
+  }
+
+  app.post('/api/jar/submit-guard', (req: Request, res: Response) => {
+    const nowMs = Date.now();
+    const validation = validateJarSubmissionInput({
+      senderInitial: String(req.body?.senderInitial ?? ''),
+      message: String(req.body?.message ?? ''),
+      paperStyle: String(req.body?.paperStyle ?? ''),
+      isAnonymous: Boolean(req.body?.isAnonymous),
+    });
+
+    if (!validation.ok) {
+      res.status(400).json({
+        ok: false,
+        code: 'INVALID_INPUT',
+        error: validation.error,
+      });
+      return;
+    }
+
+    const ipKey = getClientIpKey(req);
+    const fingerprint = buildSubmissionFingerprint(
+      validation.data.senderInitial,
+      validation.data.message,
+      validation.data.isAnonymous
+    );
+    const rateDecision = evaluateSubmissionRateLimit(
+      jarRateLimitStore.get(ipKey),
+      fingerprint,
+      nowMs
+    );
+
+    if (!rateDecision.ok) {
+      res.status(429).json({
+        ok: false,
+        code: rateDecision.code,
+        retryAfterSec: rateDecision.retryAfterSec,
+        error: rateDecision.error,
+      });
+      return;
+    }
+
+    jarRateLimitStore.set(ipKey, rateDecision.nextRecord);
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      ok: true,
+      sanitized: validation.data,
+      serverTimeMs: nowMs,
+    });
+  });
+
+  app.post('/api/jar/reveal-guard', (req: Request, res: Response) => {
+    const nowMs = Date.now();
+    res.set('Cache-Control', 'no-store');
+
+    const cooldownHours = Math.max(
+      1,
+      Math.min(168, Number(req.body?.cooldownHours ?? 24) || 24)
+    );
+
+    if (jarServerLastOpenedMs !== null) {
+      const cooldownCheck = computeCooldownStatus(jarServerLastOpenedMs, nowMs, cooldownHours);
+      if (cooldownCheck.isCoolingDown) {
+        res.status(429).json({
+          ok: false,
+          code: 'COOLDOWN_ACTIVE',
+          serverTimeMs: nowMs,
+          remainingMs: cooldownCheck.remainingMs,
+          error:
+            'Satu pesan sudah dibuka dalam 24 jam terakhir. Tunggu sebentar lagi ya.',
+        });
+        return;
+      }
+    }
+
+    if (jarRevealLockUntilMs > nowMs) {
+      res.status(429).json({
+        ok: false,
+        code: 'CONCURRENT_REVEAL',
+        serverTimeMs: nowMs,
+        error: 'Toples sedang dibuka, tunggu sebentar ya.',
+      });
+      return;
+    }
+
+    jarRevealLockUntilMs = nowMs + 8000;
+    res.json({
+      ok: true,
+      serverTimeMs: nowMs,
+    });
+  });
+
+  app.post('/api/jar/reveal-confirm', (req: Request, res: Response) => {
+    const nowMs = Date.now();
+    jarRevealLockUntilMs = 0;
+    const confirmedAt = Number(req.body?.openedAtMs);
+    jarServerLastOpenedMs =
+      Number.isFinite(confirmedAt) && confirmedAt > 0 && confirmedAt <= nowMs + 60_000
+        ? confirmedAt
+        : nowMs;
+    res.json({ ok: true, serverTimeMs: nowMs });
+  });
+
+  app.post('/api/jar/reveal-release', (_req: Request, res: Response) => {
+    jarRevealLockUntilMs = 0;
+    res.json({ ok: true, serverTimeMs: Date.now() });
+  });
+
+  app.post('/api/jar/reset-guard', async (req: Request, res: Response) => {
+    const verified = await verifyFirebaseBearerToken(
+      req.headers.authorization,
+      firebaseCfg.apiKey
+    );
+    if (!verified || !verified.emailVerified || verified.email !== PRIMARY_ADMIN_EMAIL) {
+      res.status(403).json({ ok: false, error: 'Akses ditolak.' });
+      return;
+    }
+    jarRevealLockUntilMs = 0;
+    jarServerLastOpenedMs = null;
+    res.json({ ok: true, serverTimeMs: Date.now() });
+  });
+
+  app.post('/api/quests/validate', (req: Request, res: Response) => {
+    const stepIndex = Number(req.body?.stepIndex);
+    const answer = String(req.body?.answer ?? '');
+    if (!Number.isInteger(stepIndex) || stepIndex < 0 || stepIndex > 2) {
+      res.status(400).json({ ok: false, correct: false, error: 'Pertanyaan tidak valid.' });
+      return;
+    }
+    if (!answer.trim()) {
+      res.json({ ok: true, correct: false, empty: true });
+      return;
+    }
+    const correct = verifyQuest2AnswerLocal(stepIndex, answer);
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, correct });
+  });
+
   app.post('/api/mini-oktaf/chat', async (req: Request, res: Response) => {
     try {
       const apiKey = (process.env.GEMINI_API_KEY || '').trim();
@@ -190,34 +350,36 @@ async function startServer() {
 
       const currentChapter = String(req.body?.currentChapter || 'hub').slice(0, 40);
       const flowerCount = Math.max(0, Math.min(7, Number(req.body?.collectedFlowerCount || 0) || 0));
+      const collectedFlowerIds = Array.isArray(req.body?.collectedFlowerIds)
+        ? req.body.collectedFlowerIds.filter((x: unknown): x is string => typeof x === 'string').slice(0, 7)
+        : [];
+      const quest2Step = Math.max(0, Math.min(3, Number(req.body?.quest2Step || 0) || 0));
+      const quest2Completed = Boolean(req.body?.quest2Completed) || quest2Step >= 3;
+      const collectedPolaroidIds = Array.isArray(req.body?.collectedPolaroidIds)
+        ? req.body.collectedPolaroidIds.filter((x: unknown): x is string => typeof x === 'string').slice(0, 5)
+        : [];
+      const collectedPolaroidCount = Math.max(
+        collectedPolaroidIds.length,
+        Math.min(5, Number(req.body?.collectedPolaroidCount || 0) || 0)
+      );
 
-      const chapterContextMap: Record<string, string> = {
-        hub: 'Bab 00: Beranda Jurnal (Halaman pembuka buku dan Daftar Bab)',
-        story: 'Bab 01: Our Story (Buku scrapbook 17 halaman berisi Polaroid kenangan dan amplop Secret Note)',
-        world: 'Bab 02: Our World (Bola dunia 3D berisi 20 kota impian)',
-        letters: 'Bab 03: Birthday Letters (Amplop surat dan doa pribadi untuk Wulan)',
-        video: 'Bab 04: Birthday Video (Ruang putar video ucapan ulang tahun)',
-        voices: 'Bab 05: Voices of Love (Ucapan suara dari sahabat-sahabat terdekat Wulan)',
-        wishlist: 'Bab 06: Our Future Wishlist (Daftar impian & rencana masa depan berdua)',
-        postcards: 'Bab 07: Postcards From The Future (Kartu pos waktu bersegel tanggal buka)',
-        reward: 'Bab 08: Secret Meadow (Taman rahasia setelah 7 bunga terkumpul)',
-      };
+      const systemInstruction = buildMiniOktafSystemInstruction(
+        {
+          currentChapter,
+          collectedFlowerCount: flowerCount,
+          collectedFlowerIds,
+          quest2Step,
+          quest2Completed,
+          collectedPolaroidCount,
+          collectedPolaroidIds,
+        },
+        history
+      );
 
-      const systemInstruction = [
-        'Kamu adalah Mini Oktaf, karakter pendamping kecil di dalam website buku cerita ulang tahun berjudul "A LITTLE WORLD MADE FOR YOU ♡" yang dibuat oleh Oktaf khusus untuk Wulan.',
-        'Kepribadianmu: hangat, tulus, santai, sedikit playful, sopan, dan berbicara seperti manusia sungguhan dalam bahasa Indonesia sehari-hari yang lembut (jangan kaku, jangan lebay/cringe, jangan terlalu berbunga-bunga berlebihan).',
-        'Fakta penting yang HARUS akurat:',
-        '- Hari ulang tahun Wulan adalah 19 Februari (19 Februari 2009).',
-        '- Tanggal jadian / hari spesial hubungan Oktaf & Wulan adalah 2 Mei 2026 (bedakan jelas dengan hari ulang tahun!).',
-        '- Buku cerita ini punya Bab 00 (Beranda Jurnal) sampai Bab 07 (Postcards From The Future), serta Bab 08 (Secret Meadow) jika 7 bunga tersembunyi sudah ditemukan.',
-        `- Saat ini Wulan sedang berada di: ${chapterContextMap[currentChapter] ?? chapterContextMap.hub}.`,
-        `- Jumlah bunga tersembunyi yang sudah ditemukan Wulan: ${flowerCount} dari 7 bunga.`,
-        '- Aturan Secret Quest: Jangan beri tahu lokasi persis semua bunga sekaligus kalau tidak diminta sedikit petunjuk, cukup kasih petunjuk halus sesuai bab kalau ditanya (bunga ada tersebar di Beranda, Our Story, Our World, Birthday Letters, Birthday Video, Voices of Love, dan Wishlist; ketuk dua kali Mini Oktaf membuka tracker misi).',
-        '- Jangan pernah membocorkan kode sandi buku, data sensitif, atau hal teknis server/admin.',
-        '- Jawab singkat dan akrab (maksimal 1 sampai 3 paragraf pendek).',
-      ].join('\n');
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      });
       const contents = history.map((turn) => ({
         role: turn.role === 'assistant' ? ('model' as const) : ('user' as const),
         parts: [{ text: turn.text }],
@@ -227,7 +389,6 @@ async function startServer() {
         model: 'gemini-4-hydrogen',
         contents,
         config: {
-          httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
           systemInstruction,
           responseMimeType: 'application/json',
           responseSchema: {
@@ -329,6 +490,18 @@ async function startServer() {
         res.status(403).json({
           ok: false,
           error: 'Hanya administrator terverifikasi yang dapat mengunggah aset situs.',
+        });
+        return;
+      }
+
+      if (
+        scope !== 'site-media' &&
+        verified.email !== PRIMARY_ADMIN_EMAIL &&
+        verified.email !== PRIMARY_WULAN_EMAIL
+      ) {
+        res.status(403).json({
+          ok: false,
+          error: 'Akun Google tidak memiliki izin mengunggah foto pada halaman ini.',
         });
         return;
       }

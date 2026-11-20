@@ -1,5 +1,4 @@
-import { ArrowLeft, LogOut, ShieldCheck, ShieldAlert } from 'lucide-react';
-import { PRIMARY_ADMIN_EMAIL } from '../../data/wishlist';
+import { ArrowLeft, LogOut, Lock, ShieldAlert } from 'lucide-react';
 import { useFirebaseAuth } from '../../lib/FirebaseProvider';
 
 interface AdminAuthGateProps {
@@ -9,8 +8,56 @@ interface AdminAuthGateProps {
 export function AdminAuthGate({ onExitToPublic }: AdminAuthGateProps) {
   const { user, isAdmin, authError, signInWithGoogle, signOutUser } = useFirebaseAuth();
 
+  // Signed in as Wulan or an unknown non-admin user: strictly block without exposing admin emails or Control Room UI
+  if (user && !isAdmin) {
+    return (
+      <main
+        data-testid="admin-access-denied"
+        className="paper-canvas min-h-[100dvh] w-full flex items-center justify-center px-4 py-10"
+      >
+        <section className="w-full max-w-md rounded-2xl border border-[#38271F]/16 bg-[#FBF6EE] p-6 sm:p-8 shadow-polaroid-lifted text-center space-y-5">
+          <div className="w-12 h-12 mx-auto rounded-full bg-[#A6533B]/12 text-[#A6533B] flex items-center justify-center">
+            <ShieldAlert className="w-5 h-5" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="font-serif text-2xl font-semibold text-[#38271F]">
+              Halaman Tidak Tersedia
+            </h1>
+            <p className="text-xs sm:text-sm text-[#38271F]/72 leading-relaxed">
+              Halaman ini bersifat privat dan tidak tersedia untuk akun yang sedang aktif. Kamu tetap bisa membuka seluruh halaman cerita melalui beranda utama.
+            </p>
+          </div>
+
+          <div className="space-y-2.5 pt-1">
+            <button
+              type="button"
+              onClick={onExitToPublic}
+              className="w-full min-h-[46px] rounded-xl bg-[#38271F] text-[#F4EBDD] text-sm font-semibold hover:bg-[#4e382d] transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Kembali ke Website</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={signOutUser}
+              className="w-full min-h-[42px] rounded-xl border border-[#38271F]/18 text-xs font-semibold text-[#38271F] hover:bg-[#EAE0CF] inline-flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5 text-[#A6533B]" />
+              <span>Keluar dari Akun Google</span>
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <main className="paper-canvas min-h-[100dvh] w-full flex items-center justify-center px-4 py-10">
+    <main
+      data-testid="admin-auth-gate"
+      className="paper-canvas min-h-[100dvh] w-full flex items-center justify-center px-4 py-10"
+    >
       <section className="w-full max-w-md rounded-2xl border border-[#38271F]/16 bg-[#FBF6EE] p-6 sm:p-8 shadow-polaroid-lifted relative">
         <span
           aria-hidden="true"
@@ -26,45 +73,19 @@ export function AdminAuthGate({ onExitToPublic }: AdminAuthGateProps) {
             <ArrowLeft className="w-4 h-4" />
             <span>Kembali ke Website</span>
           </button>
-
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#455342]/12 text-[#455342] text-[11px] font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Firebase Guard</span>
-          </span>
         </div>
 
         <div className="text-center">
           <div className="w-12 h-12 mx-auto rounded-full bg-[#743D4A]/12 text-[#743D4A] flex items-center justify-center mb-3">
-            {user && !isAdmin ? (
-              <ShieldAlert className="w-5 h-5 text-[#A6533B]" />
-            ) : (
-              <ShieldCheck className="w-5 h-5" />
-            )}
+            <Lock className="w-5 h-5" />
           </div>
-          <p className="text-[11px] uppercase tracking-widest text-[#743D4A] font-semibold">
-            Private Admin Area
-          </p>
-          <h1 className="mt-1 font-serif text-2xl sm:text-3xl font-semibold text-[#38271F]">
-            My Little Control Room ♡
+          <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-[#38271F]">
+            Area Privat ♡
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-[#38271F]/72 leading-relaxed">
-            Masuk menggunakan akun Google administrator (<strong>{PRIMARY_ADMIN_EMAIL}</strong>) untuk mengelola cerita, destinasi, surat, video, Voices of Love, Vinyl Player, dan Our Future Wishlist.
+            Masuk dengan akun Google pemilik situs yang terdaftar untuk mengakses area pengelolaan.
           </p>
         </div>
-
-        {user && !isAdmin && (
-          <div
-            role="alert"
-            className="mt-5 rounded-xl bg-[#A6533B]/12 border border-[#A6533B]/30 px-3.5 py-3 text-xs text-[#A6533B] space-y-1.5"
-          >
-            <p className="font-semibold">
-              Akun {user.email} tidak memiliki izin administrator.
-            </p>
-            <p className="text-[#38271F]/75">
-              Control Room hanya dapat dibuka oleh {PRIMARY_ADMIN_EMAIL}.
-            </p>
-          </div>
-        )}
 
         {authError && (
           <p
@@ -75,30 +96,15 @@ export function AdminAuthGate({ onExitToPublic }: AdminAuthGateProps) {
           </p>
         )}
 
-        <div className="mt-6 space-y-2.5">
+        <div className="mt-6">
           <button
             type="button"
             onClick={signInWithGoogle}
             className="w-full min-h-[48px] rounded-xl bg-[#38271F] text-[#F4EBDD] text-sm font-semibold hover:bg-[#4e382d] transition-colors cursor-pointer"
           >
-            {user ? 'Masuk dengan Akun Google Admin' : 'Masuk dengan Google (Admin)'}
+            Masuk dengan Google
           </button>
-
-          {user && (
-            <button
-              type="button"
-              onClick={signOutUser}
-              className="w-full min-h-[44px] rounded-xl border border-[#38271F]/20 text-xs font-semibold text-[#38271F] hover:bg-[#EAE0CF] inline-flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5 text-[#A6533B]" />
-              <span>Keluar dari {user.email}</span>
-            </button>
-          )}
         </div>
-
-        <p className="mt-5 text-[11px] text-center text-[#38271F]/55 leading-relaxed">
-          Sesi diverifikasi oleh Firebase Authentication & Cloud Firestore Security Rules. Pengunjung umum tidak dapat mengubah data.
-        </p>
       </section>
     </main>
   );

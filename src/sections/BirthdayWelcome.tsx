@@ -38,16 +38,16 @@ export function BirthdayWelcome() {
           transition={{ duration: 0.75, ease: EASE_OUT_EXPO }}
           className="inline-flex items-center gap-2 editorial-kicker"
         >
-          <Heart className="w-3.5 h-3.5 fill-[#E8BFC5] text-[#743D4A]" />
+          <Heart className="w-3.5 h-3.5 fill-[#EBC9CB] text-[#A95F70]" />
           <span>19 Februari</span>
-          <Heart className="w-3.5 h-3.5 fill-[#E8BFC5] text-[#743D4A]" />
+          <Heart className="w-3.5 h-3.5 fill-[#EBC9CB] text-[#A95F70]" />
         </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.85, delay: 0.18, ease: EASE_OUT_EXPO }}
-          className="mt-4 font-serif text-4xl sm:text-5xl md:text-6xl font-semibold text-[#38271F] tracking-tight leading-[1.12] text-balance"
+          className="mt-4 font-serif text-4xl sm:text-5xl md:text-6xl font-semibold text-[#30272A] tracking-tight leading-[1.12] text-balance"
         >
           Happy Birthday, Wulan ♡
         </motion.h1>
@@ -56,7 +56,7 @@ export function BirthdayWelcome() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.85, delay: 0.36, ease: EASE_OUT_EXPO }}
-          className="mt-4 max-w-lg font-serif italic text-base sm:text-lg text-[#38271F]/80 leading-relaxed"
+          className="mt-4 max-w-lg font-serif italic text-base sm:text-lg text-[#6E5F63] leading-relaxed"
         >
           &ldquo;A little world, filled with memories, dreams, and everything I wish to share with you.&rdquo;
         </motion.p>
@@ -82,10 +82,10 @@ export function BirthdayWelcome() {
           <button
             type="button"
             onClick={enterFromWelcome}
-            className="min-h-[50px] px-7 py-3 rounded-lg bg-[#A6533B] text-[#F4EBDD] font-medium text-sm sm:text-base tracking-wide hover:bg-[#8e442f] active:scale-[0.98] transition-all shadow-[0_10px_24px_-6px_rgba(166,83,59,0.45)] inline-flex items-center gap-2.5 cursor-pointer"
+            className="min-h-[50px] px-7 py-3 rounded-xl bg-[#552E3D] text-[#FFFDFC] font-medium text-sm sm:text-base tracking-wide hover:bg-[#3f202c] active:scale-[0.98] transition-all shadow-[0_12px_28px_-8px_rgba(85,46,61,0.45)] inline-flex items-center gap-2.5 cursor-pointer"
           >
             <span>Enter Our Little World</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 text-[#EBC9CB]" />
           </button>
         </motion.div>
       </div>

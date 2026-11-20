@@ -11,6 +11,7 @@ import {
   reorderVoiceEntry,
   SiteContentPayload,
 } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 import { VoiceFlowerSVG } from '../voices/VoiceFlowerSVG';
 import { MediaPickerControl } from './MediaPickerControl';
 
@@ -102,7 +103,7 @@ export function VoicesManager({
       } catch (err) {
         setStatus({
           type: 'err',
-          text: err instanceof Error ? err.message : 'Gagal menghapus kartu.',
+          text: formatSafeUiError(err, 'Gagal menghapus kartu.', 'admin'),
         });
       } finally {
         setSaving(false);
@@ -147,7 +148,7 @@ export function VoicesManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan Voices of Love.',
+        text: formatSafeUiError(err, 'Gagal menyimpan Voices of Love.', 'admin'),
       });
     } finally {
       setSaving(false);

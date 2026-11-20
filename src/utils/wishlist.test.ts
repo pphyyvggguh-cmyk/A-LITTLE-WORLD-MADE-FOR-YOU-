@@ -79,6 +79,9 @@ test('resolveCoupleRole and isAuthorizedAdminEmail verify case-insensitively and
 
   assert.equal(resolveCoupleRole('oktafmbul0@gmail.com', baseConfig, true), 'oktaf');
   assert.equal(resolveCoupleRole('Wulan.Lover@gmail.com', baseConfig, true), 'wulan');
+  assert.equal(resolveCoupleRole('WulanAinindya92@gmail.com', DEFAULT_ACCESS_CONFIG, true), 'wulan');
+  assert.equal(isAuthorizedAdminEmail('wulanainindya92@gmail.com', true), false);
+  assert.equal(resolveCoupleRole('stranger@gmail.com', DEFAULT_ACCESS_CONFIG, true), null);
   assert.equal(resolveCoupleRole('stranger@gmail.com', baseConfig, true), null);
   assert.equal(
     resolveCoupleRole(

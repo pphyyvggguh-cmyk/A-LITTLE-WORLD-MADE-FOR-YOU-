@@ -9,6 +9,7 @@ import {
 } from '../../data/miniOktaf';
 import { saveMiniOktafContent } from '../../utils/adminApi';
 import { MiniOktafContentConfig, SiteContentPayload } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 
 interface MiniOktafManagerProps {
   miniOktaf: MiniOktafContentConfig;
@@ -100,7 +101,7 @@ export function MiniOktafManager({ miniOktaf, onSaved }: MiniOktafManagerProps) 
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan dialog Mini Oktaf.',
+        text: formatSafeUiError(err, 'Gagal menyimpan dialog Mini Oktaf.', 'admin'),
       });
     } finally {
       setSaving(false);

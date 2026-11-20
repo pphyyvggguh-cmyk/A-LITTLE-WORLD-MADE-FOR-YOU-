@@ -1,17 +1,11 @@
 /* Tactile book surfaces, spine shading, folded corners, interactive curl & gentle subtle motion */
 .book-desk-surface {
-  background-color: #f4ebdd;
+  background-color: #f8f1e8;
   background-image:
-    radial-gradient(at 18% 14%, rgba(232, 191, 197, 0.24) 0px, transparent 48%),
-    radial-gradient(at 84% 20%, rgba(196, 165, 116, 0.22) 0px, transparent 52%),
-    radial-gradient(at 50% 92%, rgba(69, 83, 66, 0.08) 0px, transparent 55%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(56, 39, 31, 0.012) 0px,
-      rgba(56, 39, 31, 0.012) 1px,
-      transparent 1px,
-      transparent 28px
-    );
+    radial-gradient(at 14% 12%, rgba(235, 201, 203, 0.36) 0px, transparent 48%),
+    radial-gradient(at 86% 18%, rgba(232, 187, 165, 0.24) 0px, transparent 50%),
+    radial-gradient(at 50% 92%, rgba(168, 178, 155, 0.14) 0px, transparent 54%),
+    radial-gradient(at 78% 72%, rgba(201, 168, 121, 0.14) 0px, transparent 48%);
 }
 
 /* Linen hardcover texture */

@@ -13,6 +13,7 @@ import {
 } from '../../data/wishlist';
 import { uploadWishlistPhoto } from '../../utils/adminApi';
 import { validateWishlistFormInput } from '../../utils/wishlist';
+import { formatSafeUiError } from '../../utils/safeError';
 
 interface WishFormModalProps {
   mode: 'create' | 'edit';
@@ -96,7 +97,7 @@ export function WishFormModal({
       setPhotos((prev) => [...prev, url]);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Foto belum berhasil diunggah. Coba lagi sebentar ya.'
+        formatSafeUiError(err, 'Foto belum berhasil diunggah. Coba lagi sebentar ya.', 'public')
       );
     } finally {
       setUploadingPhoto(false);
@@ -142,7 +143,7 @@ export function WishFormModal({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Catatan impian belum berhasil disimpan. Coba lagi sebentar ya.'
+        formatSafeUiError(err, 'Catatan impian belum berhasil disimpan. Coba lagi sebentar ya.', 'public')
       );
     } finally {
       setSaving(false);

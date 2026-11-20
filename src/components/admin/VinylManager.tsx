@@ -11,6 +11,7 @@ import {
 import { VinylPlayerConfig, VinylTrack } from '../../data/vinyl';
 import { MediaAssetItem, saveVinylConfig, saveVinylPlaylist } from '../../utils/adminApi';
 import { SiteContentPayload } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 import {
   extractYouTubeVideoId,
   getYouTubeThumbnailUrl,
@@ -144,7 +145,7 @@ export function VinylManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan daftar Vinyl Player.',
+        text: formatSafeUiError(err, 'Gagal menyimpan daftar Vinyl Player.', 'admin'),
       });
     } finally {
       setSaving(false);

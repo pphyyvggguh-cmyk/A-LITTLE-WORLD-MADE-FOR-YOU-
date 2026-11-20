@@ -101,21 +101,21 @@ export function PasswordGate() {
             <motion.div
               animate={opening ? { scale: 1.25, rotate: -10, opacity: 0 } : { scale: 1 }}
               transition={{ duration: 0.45 }}
-              className="relative z-10 mt-6 w-12 h-12 rounded-full bg-[#A6533B] border-2 border-[#743D4A]/40 shadow-md flex items-center justify-center text-[#F4EBDD]"
+              className="relative z-10 mt-6 w-12 h-12 rounded-full bg-[#A95F70] border-2 border-[#552E3D]/35 shadow-md flex items-center justify-center text-[#FFFDFC]"
               aria-hidden="true"
             >
-              <Heart className="w-5 h-5 fill-[#F4EBDD]" />
+              <Heart className="w-5 h-5 fill-[#FFFDFC]" />
             </motion.div>
           </div>
 
           <div className="px-6 sm:px-8 pt-6 pb-8 text-center">
             <p className="editorial-kicker">Undangan Pribadi · Untuk Wulan</p>
 
-            <h1 className="mt-2 font-serif text-2xl sm:text-[26px] font-semibold text-[#38271F] leading-snug text-balance">
+            <h1 className="mt-2 font-serif text-2xl sm:text-[26px] font-semibold text-[#30272A] leading-snug text-balance">
               A Little World Made For <span className="whitespace-nowrap">You ♡</span>
             </h1>
 
-            <p className="mt-2.5 text-sm text-[#38271F]/74 leading-relaxed text-balance">
+            <p className="mt-2.5 text-sm text-[#6E5F63] leading-relaxed text-balance">
               Ada ruang kecil yang disiapkan khusus buat kamu. Masukkan kodenya untuk membuka amplop ini.
             </p>
 
@@ -123,13 +123,13 @@ export function PasswordGate() {
               <div>
                 <label
                   htmlFor="invitation-password"
-                  className="block text-xs font-medium text-[#38271F]/78 mb-1.5"
+                  className="block text-xs font-medium text-[#30272A]/80 mb-1.5"
                 >
                   Kode Undangan (DDMMYYYY)
                 </label>
                 <div className="relative">
                   <KeyRound
-                    className="w-4 h-4 text-[#A6533B]/75 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    className="w-4 h-4 text-[#A95F70] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
                     aria-hidden="true"
                   />
                   <input
@@ -143,13 +143,13 @@ export function PasswordGate() {
                       if (error) setError(null);
                     }}
                     placeholder="Masukkan 8 digit kode..."
-                    className="w-full min-h-[48px] pl-10 pr-12 py-2.5 rounded-lg bg-[#F4EBDD]/75 border border-[#38271F]/20 text-[#38271F] placeholder:text-[#38271F]/40 text-base tracking-widest focus:outline-none focus:border-[#A6533B] focus:ring-2 focus:ring-[#A6533B]/20 transition-all"
+                    className="w-full min-h-[48px] pl-10 pr-12 py-2.5 rounded-xl bg-[#F8F1E8]/80 border border-[#30272A]/18 text-[#30272A] placeholder:text-[#6E5F63]/60 text-base tracking-widest focus:outline-none focus:border-[#A95F70] focus:ring-2 focus:ring-[#A95F70]/20 transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCode((v) => !v)}
                     aria-label={showCode ? 'Sembunyikan kode' : 'Tampilkan kode'}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] rounded-lg flex items-center justify-center text-[#38271F]/60 hover:text-[#38271F] cursor-pointer"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center text-[#6E5F63] hover:text-[#30272A] cursor-pointer"
                   >
                     {showCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -164,7 +164,7 @@ export function PasswordGate() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="text-xs sm:text-[13px] text-[#A6533B] bg-[#E8BFC5]/28 border border-[#A6533B]/25 rounded-lg px-3 py-2"
+                    className="text-xs sm:text-[13px] text-[#552E3D] bg-[#EBC9CB]/40 border border-[#A95F70]/35 rounded-xl px-3 py-2"
                   >
                     {error}
                   </motion.p>
@@ -174,14 +174,14 @@ export function PasswordGate() {
               <button
                 type="submit"
                 disabled={opening}
-                className="w-full min-h-[48px] rounded-lg bg-[#38271F] text-[#F4EBDD] font-medium text-sm tracking-wide hover:bg-[#4b352a] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-70"
+                className="w-full min-h-[48px] rounded-xl bg-[#552E3D] text-[#FFFDFC] font-medium text-sm tracking-wide hover:bg-[#3f202c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-70"
               >
                 <span>{opening ? 'Membuka Undangan...' : 'Buka Undangan'}</span>
-                <Heart className="w-4 h-4 text-[#E8BFC5]" />
+                <Heart className="w-4 h-4 text-[#EBC9CB]" />
               </button>
             </form>
 
-            <p className="mt-5 font-hand text-lg text-[#743D4A]/90 leading-snug">
+            <p className="mt-5 font-hand text-lg text-[#552E3D] leading-snug">
               Tanggal lahir seseorang yang selalu punya tempat istimewa di cerita ini.
             </p>
           </div>

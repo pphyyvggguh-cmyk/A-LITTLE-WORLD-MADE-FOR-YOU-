@@ -7,6 +7,8 @@ import {
   SECTION_DIALOGUES,
 } from '../data/miniOktaf';
 import { FLOWERS_DATA, VALID_FLOWER_IDS } from '../data/flowers';
+import { POLAROIDS_QUEST_DATA, VALID_POLAROID_IDS } from '../data/quests';
+import { addCollectedPolaroid, TOTAL_POLAROIDS, TOTAL_QUEST2_QUESTIONS } from '../utils/quests';
 import {
   addCollectedFlower,
   isFlowerQuestComplete,
@@ -40,6 +42,7 @@ export type AppSection =
   | 'voices'
   | 'wishlist'
   | 'postcards'
+  | 'jar-of-thoughts'
   | 'reward';
 
 interface OktafUIState {
@@ -58,6 +61,12 @@ interface AppState {
   questDiscovered: boolean;
   questModalOpen: boolean;
   rewardClaimed: boolean;
+  quest2Step: number;
+  quest2Completed: boolean;
+  collectedPolaroids: string[];
+  justCollectedPolaroidId: string | null;
+  quest2GiftModalOpen: boolean;
+  heartGalleryModalOpen: boolean;
   visitedSections: string[];
   selectedMemoryId: string | null;
   selectedDestinationId: string;
@@ -78,7 +87,11 @@ interface AppState {
   triggerOktafSingleTap: () => void;
   triggerOktafDoubleTap: () => void;
   setQuestModalOpen: (open: boolean) => void;
+  setQuest2GiftModalOpen: (open: boolean) => void;
+  setHeartGalleryModalOpen: (open: boolean) => void;
+  recordQuest2StepSolved: (stepSolvedCount: number) => void;
   collectFlower: (flowerId: string) => boolean;
+  collectPolaroid: (polaroidId: string) => boolean;
   claimReward: () => void;
   lockExperience: () => void;
   completeBookIntro: () => void;
@@ -111,13 +124,28 @@ const initialBookIntroActive =
 const initialDialogue =
   SECTION_DIALOGUES[initialSection] ?? SECTION_DIALOGUES.hub;
 
-function syncStorage(state: Pick<AppState, 'isUnlocked' | 'collectedFlowers' | 'questDiscovered' | 'rewardClaimed' | 'visitedSections'>) {
+function syncStorage(
+  state: Pick<
+    AppState,
+    | 'isUnlocked'
+    | 'collectedFlowers'
+    | 'questDiscovered'
+    | 'rewardClaimed'
+    | 'visitedSections'
+    | 'quest2Step'
+    | 'quest2Completed'
+    | 'collectedPolaroids'
+  >
+) {
   savePersistedState({
     isUnlocked: state.isUnlocked,
     collectedFlowers: state.collectedFlowers,
     questDiscovered: state.questDiscovered,
     rewardClaimed: state.rewardClaimed,
     visitedSections: state.visitedSections,
+    quest2Step: state.quest2Step,
+    quest2Completed: state.quest2Completed,
+    collectedPolaroids: state.collectedPolaroids,
   });
 }
 
@@ -133,6 +161,12 @@ export const useStore = create<AppState>((set, get) => ({
   questDiscovered: persisted.questDiscovered,
   questModalOpen: false,
   rewardClaimed: persisted.rewardClaimed,
+  quest2Step: persisted.quest2Step ?? 0,
+  quest2Completed: Boolean(persisted.quest2Completed),
+  collectedPolaroids: persisted.collectedPolaroids ?? [],
+  justCollectedPolaroidId: null,
+  quest2GiftModalOpen: false,
+  heartGalleryModalOpen: false,
   visitedSections: persisted.visitedSections,
   selectedMemoryId: null,
   selectedDestinationId: 'bandung',
@@ -144,7 +178,7 @@ export const useStore = create<AppState>((set, get) => ({
     pose: initialDialogue.pose,
     expression: initialDialogue.expression,
     message: initialDialogue.message,
-    minimized: false,
+    minimized: typeof window !== 'undefined' ? window.innerWidth < 768 : false,
     bubbleVisible: true,
   },
 
@@ -353,6 +387,42 @@ export const useStore = create<AppState>((set, get) => ({
 
   setQuestModalOpen: (open) => set({ questModalOpen: open }),
 
+  setQuest2GiftModalOpen: (open) =>
+    set({
+      quest2GiftModalOpen: open,
+      questModalOpen: open ? false : get().questModalOpen,
+    }),
+
+  setHeartGalleryModalOpen: (open) =>
+    set({
+      heartGalleryModalOpen: open,
+      questModalOpen: open ? false : get().questModalOpen,
+    }),
+
+  recordQuest2StepSolved: (stepSolvedCount: number) => {
+    const clamped = Math.max(0, Math.min(TOTAL_QUEST2_QUESTIONS, Math.floor(stepSolvedCount)));
+    const completed = clamped >= TOTAL_QUEST2_QUESTIONS;
+    const dlg = QUEST_DIALOGUES.quest2StepSolved(clamped, TOTAL_QUEST2_QUESTIONS);
+    set((state) => {
+      const next = {
+        ...state,
+        questDiscovered: true,
+        quest2Step: Math.max(state.quest2Step, clamped),
+        quest2Completed: state.quest2Completed || completed,
+        oktaf: {
+          ...state.oktaf,
+          pose: dlg.pose,
+          expression: dlg.expression,
+          message: dlg.message,
+          minimized: false,
+          bubbleVisible: true,
+        },
+      };
+      syncStorage(next);
+      return next;
+    });
+  },
+
   collectFlower: (flowerId: string) => {
     const { collectedFlowers } = get();
     const res = addCollectedFlower(collectedFlowers, flowerId, VALID_FLOWER_IDS);
@@ -387,6 +457,46 @@ export const useStore = create<AppState>((set, get) => ({
     window.setTimeout(() => {
       if (get().justCollectedFlowerId === flowerId) {
         set({ justCollectedFlowerId: null });
+      }
+    }, 1800);
+
+    return true;
+  },
+
+  collectPolaroid: (polaroidId: string) => {
+    const { collectedPolaroids } = get();
+    const res = addCollectedPolaroid(collectedPolaroids, polaroidId, VALID_POLAROID_IDS);
+    if (!res.added) return false;
+
+    const meta = POLAROIDS_QUEST_DATA.find((p) => p.id === polaroidId);
+    const dlg = QUEST_DIALOGUES.polaroidCollected(
+      res.next.length,
+      TOTAL_POLAROIDS,
+      meta?.title ?? 'Polaroid'
+    );
+
+    set((state) => {
+      const next = {
+        ...state,
+        collectedPolaroids: res.next,
+        questDiscovered: true,
+        justCollectedPolaroidId: polaroidId,
+        oktaf: {
+          ...state.oktaf,
+          pose: dlg.pose,
+          expression: dlg.expression,
+          message: dlg.message,
+          minimized: false,
+          bubbleVisible: true,
+        },
+      };
+      syncStorage(next);
+      return next;
+    });
+
+    window.setTimeout(() => {
+      if (get().justCollectedPolaroidId === polaroidId) {
+        set({ justCollectedPolaroidId: null });
       }
     }, 1800);
 

@@ -33,9 +33,9 @@ export function MiniOktafCharacter({
 
   const handleCharacterTap = () => {
     const now = Date.now();
-    const delta = now - lastTapTimeRef.current;
+    const delta = lastTapTimeRef.current > 0 ? now - lastTapTimeRef.current : -1;
 
-    if (delta > 0 && delta < 360) {
+    if (delta >= 0 && delta < 440) {
       if (singleTapTimerRef.current) {
         window.clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
@@ -87,23 +87,23 @@ export function MiniOktafCharacter({
     );
   }
 
-  // Floating companion mode (non-obstructive on Android & Desktop)
+  // Floating companion mode (non-obstructive on Android mobile bottom nav & Desktop)
   if (oktaf.minimized) {
     return (
       <>
         <MiniOktafChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
         <div
           data-no-chapter-swipe="true"
-          className={`fixed bottom-4 right-4 z-40 flex items-center gap-2 ${className}`}
+          className={`fixed bottom-[70px] right-2.5 md:bottom-5 md:right-5 z-40 flex items-center gap-1.5 sm:gap-2 ${className}`}
         >
           <button
             type="button"
             data-testid="mini-oktaf-chat-toggle"
             onClick={() => setChatOpen((v) => !v)}
             aria-label="Ngobrol bareng Mini Oktaf"
-            className="min-h-[42px] px-3 py-1.5 rounded-full bg-[#38271F] text-[#F4EBDD] text-xs font-medium inline-flex items-center gap-1.5 shadow-lg hover:bg-[#4e382d] transition-colors cursor-pointer"
+            className="min-h-[42px] px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-[#552E3D] text-[#FFFDFC] text-[11px] sm:text-xs font-medium inline-flex items-center gap-1.5 shadow-lg hover:bg-[#3f202c] transition-colors cursor-pointer"
           >
-            <MessageCircleHeart className="w-3.5 h-3.5 text-[#E8BFC5]" />
+            <MessageCircleHeart className="w-3.5 h-3.5 text-[#EBC9CB]" />
             <span>Ngobrol</span>
           </button>
 
@@ -111,15 +111,15 @@ export function MiniOktafCharacter({
             type="button"
             onClick={() => toggleMinimized(false)}
             aria-label="Tampilkan Mini Oktaf"
-            className="flex items-center gap-2 bg-[#FBF6EE] border border-[#38271F]/20 rounded-full pl-1.5 pr-3 py-1.5 shadow-lg hover:bg-[#F4EBDD] transition-colors cursor-pointer min-h-[44px]"
+            className="flex items-center gap-1.5 bg-[#FFFDFC] border border-[#30272A]/16 rounded-xl pl-1 pr-2.5 py-1 shadow-lg hover:bg-[#F8F1E8] transition-colors cursor-pointer min-h-[42px]"
           >
             <img
               src={exprSrc}
               alt="Mini Oktaf"
-              className="w-8 h-8 rounded-full object-contain bg-[#E8BFC5]/30"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain bg-[#EBC9CB]/35"
             />
-            <span className="text-xs font-medium text-[#38271F]">Oktaf</span>
-            <MessageCircle className="w-3.5 h-3.5 text-[#A6533B]" />
+            <span className="text-[11px] sm:text-xs font-medium text-[#30272A]">Oktaf</span>
+            <MessageCircle className="w-3 h-3 text-[#A95F70] hidden sm:inline" />
           </button>
         </div>
       </>
@@ -132,7 +132,7 @@ export function MiniOktafCharacter({
       <aside
         aria-label="Pemandu Mini Oktaf"
         data-no-chapter-swipe="true"
-        className={`fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-40 flex flex-col items-end pointer-events-none ${className}`}
+        className={`fixed bottom-[70px] right-2.5 md:bottom-5 md:right-5 z-40 flex flex-col items-end pointer-events-none ${className}`}
       >
         <div className="flex flex-col sm:flex-row items-end gap-2 pointer-events-auto">
           <div className="order-1 sm:order-1 mb-1 sm:mb-6">
@@ -151,12 +151,12 @@ export function MiniOktafCharacter({
                 type="button"
                 onClick={handleCharacterTap}
                 aria-label="Mini Oktaf — ketuk sekali untuk mengobrol, ketuk dua kali untuk membuka misi rahasia"
-                className="relative cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A6533B] rounded-xl active:scale-95 transition-transform"
+                className="relative cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A95F70] rounded-xl active:scale-95 transition-transform"
               >
                 <img
                   src={poseSrc}
                   alt="Mini Oktaf"
-                  className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-[0_10px_18px_rgba(56,39,31,0.2)] select-none transition-transform duration-200"
+                  className="w-20 h-20 sm:w-28 sm:h-28 object-contain drop-shadow-[0_10px_18px_rgba(48,39,42,0.18)] select-none transition-transform duration-200"
                   draggable={false}
                 />
               </button>
@@ -166,7 +166,7 @@ export function MiniOktafCharacter({
                 onClick={() => toggleMinimized(true)}
                 aria-label="Sembunyikan sementara Mini Oktaf"
                 title="Sembunyikan Mini Oktaf"
-                className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-[#FBF6EE] border border-[#38271F]/18 text-[#38271F]/70 hover:text-[#38271F] hover:bg-[#EAE0CF] flex items-center justify-center shadow-sm cursor-pointer"
+                className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-[#FFFDFC] border border-[#30272A]/16 text-[#6E5F63] hover:text-[#30272A] hover:bg-[#F8F1E8] flex items-center justify-center shadow-sm cursor-pointer"
               >
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
@@ -178,9 +178,9 @@ export function MiniOktafCharacter({
                 type="button"
                 data-testid="mini-oktaf-chat-toggle-always"
                 onClick={() => setChatOpen((v) => !v)}
-                className="rounded-full bg-[#38271F] text-[#F4EBDD] px-2.5 py-1 text-[10px] font-medium inline-flex items-center gap-1 shadow-md hover:bg-[#4e382d] cursor-pointer"
+                className="rounded-xl bg-[#552E3D] text-[#FFFDFC] px-2.5 py-1 text-[10px] font-medium inline-flex items-center gap-1 shadow-md hover:bg-[#3f202c] cursor-pointer"
               >
-                <MessageCircleHeart className="w-3 h-3 text-[#E8BFC5]" />
+                <MessageCircleHeart className="w-3 h-3 text-[#EBC9CB]" />
                 <span>{chatOpen ? 'Tutup Chat' : 'Ngobrol AI'}</span>
               </button>
             )}

@@ -4,6 +4,7 @@ import { StorySecretNote } from '../../data/hiddenMessages';
 import { BookPolaroidItem, MemoryBookPage } from '../../data/memories';
 import { MediaAssetItem, saveStoryPages } from '../../utils/adminApi';
 import { SiteContentPayload } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 import { MediaPickerControl } from './MediaPickerControl';
 import { SecretNotesManager } from './SecretNotesManager';
 
@@ -88,7 +89,7 @@ export function StoryManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan Our Story.',
+        text: formatSafeUiError(err, 'Gagal menyimpan Our Story.', 'admin'),
       });
     } finally {
       setSaving(false);

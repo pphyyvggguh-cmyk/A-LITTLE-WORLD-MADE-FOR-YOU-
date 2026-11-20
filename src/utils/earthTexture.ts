@@ -6,7 +6,7 @@ import { DESTINATIONS_DATA } from '../data/destinations';
 
 export interface EarthTextures {
   dayMap: THREE.CanvasTexture;
-  bumpMap: THREE.CanvasTexture;
+  bumpMap: THREE.CanvasTexture | null;
   cloudMap: THREE.CanvasTexture;
   dispose: () => void;
 }
@@ -50,7 +50,10 @@ function drawPolygonRings(
   }
 }
 
+let cachedCountryPolygons: number[][][][] | null = null;
+
 export function extractWorldCountryPolygons(): number[][][][] {
+  if (cachedCountryPolygons) return cachedCountryPolygons;
   const topology = countries110m as unknown as Topology<{
     countries: GeometryCollection;
   }>;
@@ -67,6 +70,7 @@ export function extractWorldCountryPolygons(): number[][][][] {
       }
     }
   }
+  cachedCountryPolygons = allPolygons;
   return allPolygons;
 }
 
@@ -74,9 +78,12 @@ export function extractWorldCountryPolygons(): number[][][][] {
  * Generates high-resolution geographically accurate Earth day, bump, and cloud textures
  * from Natural Earth 110m vector data (zero external image requests).
  */
-export function createEarthTextures(maxAnisotropy = 4): EarthTextures {
-  const W = 2048;
-  const H = 1024;
+export function createEarthTextures(
+  maxAnisotropy = 4,
+  compactResolution = false
+): EarthTextures {
+  const W = compactResolution ? 512 : 2048;
+  const H = compactResolution ? 256 : 1024;
   const polygons = extractWorldCountryPolygons();
 
   // 1. Day Albedo Map
@@ -166,33 +173,38 @@ export function createEarthTextures(maxAnisotropy = 4): EarthTextures {
   dayMap.wrapT = THREE.ClampToEdgeWrapping;
   dayMap.needsUpdate = true;
 
-  // 2. Grayscale Bump Map (ocean=flat dark, land=elevated bright)
-  const bumpCanvas = document.createElement('canvas');
-  bumpCanvas.width = 1024;
-  bumpCanvas.height = 512;
-  const bctx = bumpCanvas.getContext('2d')!;
-  bctx.fillStyle = '#181818';
-  bctx.fillRect(0, 0, 1024, 512);
-  bctx.fillStyle = '#B8B8B8';
-  bctx.strokeStyle = '#606060';
-  bctx.lineWidth = 1.5;
-  for (const rings of polygons) {
-    drawPolygonRings(bctx, rings, 1024, 512);
-    bctx.fill();
-    bctx.stroke();
+  // 2. Grayscale Bump Map (skipped in compact/software mode where bumpMap is unused)
+  let bumpMap: THREE.CanvasTexture | null = null;
+  if (!compactResolution) {
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = 1024;
+    bumpCanvas.height = 512;
+    const bctx = bumpCanvas.getContext('2d')!;
+    bctx.fillStyle = '#181818';
+    bctx.fillRect(0, 0, 1024, 512);
+    bctx.fillStyle = '#B8B8B8';
+    bctx.strokeStyle = '#606060';
+    bctx.lineWidth = 1.5;
+    for (const rings of polygons) {
+      drawPolygonRings(bctx, rings, 1024, 512);
+      bctx.fill();
+      bctx.stroke();
+    }
+
+    bumpMap = new THREE.CanvasTexture(bumpCanvas);
+    bumpMap.colorSpace = THREE.NoColorSpace;
+    bumpMap.anisotropy = maxAnisotropy;
+    bumpMap.needsUpdate = true;
   }
 
-  const bumpMap = new THREE.CanvasTexture(bumpCanvas);
-  bumpMap.colorSpace = THREE.NoColorSpace;
-  bumpMap.anisotropy = maxAnisotropy;
-  bumpMap.needsUpdate = true;
-
   // 3. Soft Atmospheric Cloud Layer
+  const cloudW = compactResolution ? 512 : 1024;
+  const cloudH = compactResolution ? 256 : 512;
   const cloudCanvas = document.createElement('canvas');
-  cloudCanvas.width = 1024;
-  cloudCanvas.height = 512;
+  cloudCanvas.width = cloudW;
+  cloudCanvas.height = cloudH;
   const cctx = cloudCanvas.getContext('2d')!;
-  cctx.clearRect(0, 0, 1024, 512);
+  cctx.clearRect(0, 0, cloudW, cloudH);
 
   // Deterministic wispy cloud puffs
   let seed = 42;
@@ -200,11 +212,12 @@ export function createEarthTextures(maxAnisotropy = 4): EarthTextures {
     seed = (seed * 1664525 + 1013904223) % 4294967296;
     return seed / 4294967296;
   };
-  for (let i = 0; i < 160; i++) {
-    const cx = rand() * 1024;
-    const cy = 40 + rand() * 432;
-    const rx = 24 + rand() * 58;
-    const ry = 8 + rand() * 18;
+  const puffCount = compactResolution ? 90 : 160;
+  for (let i = 0; i < puffCount; i++) {
+    const cx = rand() * cloudW;
+    const cy = (40 / 512) * cloudH + rand() * ((432 / 512) * cloudH);
+    const rx = (24 + rand() * 58) * (cloudW / 1024);
+    const ry = (8 + rand() * 18) * (cloudH / 512);
     const grad = cctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
     grad.addColorStop(0, 'rgba(255, 252, 246, 0.24)');
     grad.addColorStop(1, 'rgba(255, 252, 246, 0)');
@@ -225,7 +238,7 @@ export function createEarthTextures(maxAnisotropy = 4): EarthTextures {
     cloudMap,
     dispose: () => {
       dayMap.dispose();
-      bumpMap.dispose();
+      bumpMap?.dispose();
       cloudMap.dispose();
     },
   };

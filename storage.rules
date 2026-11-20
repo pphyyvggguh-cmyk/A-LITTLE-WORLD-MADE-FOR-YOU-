@@ -6,7 +6,11 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'oktafmbul0@gmail.com';
+      return isSignedIn() && request.auth.token.email.lower() == 'oktafmbul0@gmail.com';
+    }
+
+    function isCoupleMember() {
+      return isAdmin() || (isSignedIn() && request.auth.token.email.lower() == 'wulanainindya92@gmail.com');
     }
 
     function isValidMediaUpload() {
@@ -30,16 +34,16 @@ service firebase.storage {
       allow write: if isAdmin() && (request.resource == null || isValidMediaUpload());
     }
 
-    // Wishlist photos (readable when download URL is rendered in authorized/public cards)
+    // Wishlist photos (couple-only uploads; download URLs embed access tokens for authorized views)
     match /wishlist-media/{wishId}/{fileName} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && (request.resource == null || isValidImageUpload());
+      allow read: if isCoupleMember();
+      allow write: if isCoupleMember() && (request.resource == null || isValidImageUpload());
     }
 
-    // Postcard photos (secret download URL only stored inside time-locked /postcards/{id}/secret/content)
+    // Postcard photos (couple-only uploads; secret download URL only stored inside time-locked /postcards/{id}/secret/content)
     match /postcard-media/{postcardId}/{fileName} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && (request.resource == null || isValidImageUpload());
+      allow read: if isCoupleMember();
+      allow write: if isCoupleMember() && (request.resource == null || isValidImageUpload());
     }
 
     // Catch-all deny

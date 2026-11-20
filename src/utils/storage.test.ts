@@ -58,3 +58,29 @@ test('serializeState and deserializeState preserve progress and deduplicate', ()
   assert.equal(corrupted.isUnlocked, false);
   assert.deepEqual(corrupted.collectedFlowers, []);
 });
+
+test('deserializeState preserves legacy flower progress while initializing and roundtripping Quest 2 and Quest 3 state', () => {
+  const legacyRaw = JSON.stringify({
+    isUnlocked: true,
+    collectedFlowers: ['flower-sakura', 'flower-sunflower'],
+    questDiscovered: true,
+    rewardClaimed: false,
+    visitedSections: ['hub', 'story'],
+  });
+  const migrated = deserializeState(legacyRaw);
+  assert.deepEqual(migrated.collectedFlowers, ['flower-sakura', 'flower-sunflower']);
+  assert.equal(migrated.quest2Step, 0);
+  assert.equal(migrated.quest2Completed, false);
+  assert.deepEqual(migrated.collectedPolaroids, []);
+
+  const updatedRaw = serializeState({
+    ...migrated,
+    quest2Step: 3,
+    quest2Completed: true,
+    collectedPolaroids: ['polaroid-story', 'polaroid-letters', 'polaroid-story'],
+  });
+  const roundtripped = deserializeState(updatedRaw);
+  assert.equal(roundtripped.quest2Step, 3);
+  assert.equal(roundtripped.quest2Completed, true);
+  assert.deepEqual(roundtripped.collectedPolaroids, ['polaroid-story', 'polaroid-letters']);
+});

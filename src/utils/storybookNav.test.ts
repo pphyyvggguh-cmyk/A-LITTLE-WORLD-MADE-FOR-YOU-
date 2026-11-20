@@ -6,6 +6,7 @@ import {
   getAdjacentBookChapter,
   getAvailableBookChapters,
   getChapterTransitionDirection,
+  isPublicLeaveAThoughtLocation,
   resolveChapterFromLocation,
   resolvePostUnlockSection,
   shouldCommitChapterSwipe,
@@ -22,21 +23,23 @@ test('getAvailableBookChapters excludes removed calendar chapter and appends rew
     'voices',
     'wishlist',
     'postcards',
+    'jar-of-thoughts',
   ]);
   assert.equal((locked as string[]).includes('calendar'), false);
 
   const unlocked = getAvailableBookChapters(true);
   assert.equal(unlocked.at(-1), 'reward');
-  assert.equal(unlocked.length, 9);
+  assert.equal(unlocked.length, 10);
 });
 
 test('getAdjacentBookChapter navigates forward and backward across book chapters safely', () => {
   assert.equal(getAdjacentBookChapter('hub', 'prev', false), null);
   assert.equal(getAdjacentBookChapter('hub', 'next', false), 'story');
   assert.equal(getAdjacentBookChapter('story', 'prev', false), 'hub');
-  assert.equal(getAdjacentBookChapter('postcards', 'next', false), null);
-  assert.equal(getAdjacentBookChapter('postcards', 'next', true), 'reward');
-  assert.equal(getAdjacentBookChapter('reward', 'prev', true), 'postcards');
+  assert.equal(getAdjacentBookChapter('postcards', 'next', false), 'jar-of-thoughts');
+  assert.equal(getAdjacentBookChapter('jar-of-thoughts', 'next', false), null);
+  assert.equal(getAdjacentBookChapter('jar-of-thoughts', 'next', true), 'reward');
+  assert.equal(getAdjacentBookChapter('reward', 'prev', true), 'jar-of-thoughts');
 });
 
 test('resolvePostUnlockSection prevents authenticated browser Back from returning to password or welcome', () => {
@@ -48,19 +51,25 @@ test('resolvePostUnlockSection prevents authenticated browser Back from returnin
   assert.equal(resolvePostUnlockSection('welcome', true, false), 'hub');
   assert.equal(resolvePostUnlockSection(null, true, false), 'hub');
   assert.equal(resolvePostUnlockSection('story', true, false), 'story');
+  assert.equal(resolvePostUnlockSection('jar-of-thoughts', true, false), 'jar-of-thoughts');
   assert.equal(resolvePostUnlockSection('reward', true, false), 'hub');
   assert.equal(resolvePostUnlockSection('reward', true, true), 'reward');
 });
 
-test('resolveChapterFromLocation parses URL chapter cleanly and ignores password/calendar/welcome', () => {
+test('resolveChapterFromLocation parses URL chapter and public submission route cleanly', () => {
   assert.equal(resolveChapterFromLocation('?chapter=letters', '', false), 'letters');
   assert.equal(resolveChapterFromLocation('', '#world', false), 'world');
+  assert.equal(resolveChapterFromLocation('', '#/jar-of-thoughts', false), 'jar-of-thoughts');
   assert.equal(resolveChapterFromLocation('?chapter=calendar', '', false), null);
   assert.equal(resolveChapterFromLocation('?chapter=password', '', false), null);
   assert.equal(resolveChapterFromLocation('?chapter=reward', '', false), 'hub');
   assert.equal(resolveChapterFromLocation('?chapter=reward', '', true), 'reward');
   assert.equal(buildChapterUrlPath('hub'), '/');
-  assert.equal(buildChapterUrlPath('story'), '/?chapter=story');
+  assert.equal(buildChapterUrlPath('jar-of-thoughts'), '/?chapter=jar-of-thoughts');
+
+  assert.equal(isPublicLeaveAThoughtLocation('/', '#/leave-a-thought'), true);
+  assert.equal(isPublicLeaveAThoughtLocation('/leave-a-thought', ''), true);
+  assert.equal(isPublicLeaveAThoughtLocation('/', '#/jar-of-thoughts'), false);
 });
 
 test('chapter swipe physics commit intentional horizontal turns and ignore vertical scrolls', () => {

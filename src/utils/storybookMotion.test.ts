@@ -17,6 +17,7 @@ test('getSectionAnimationProfile returns distinct living animation personalities
     'voices',
     'wishlist',
     'postcards',
+    'jar-of-thoughts',
     'reward',
   ];
 
@@ -54,12 +55,12 @@ test('getChapterIndexSummary tracks active chapter, visited counts, and reward l
   const lockedSummary = getChapterIndexSummary('story', ['hub', 'story'], false);
   assert.equal(lockedSummary.activeChapter?.chapterNumber, '01');
   assert.equal(lockedSummary.visitedCount, 2);
-  assert.equal(lockedSummary.totalAccessibleCount, 8);
+  assert.equal(lockedSummary.totalAccessibleCount, 9);
   const rewardEntryLocked = lockedSummary.chapters.find((c) => c.id === 'reward');
   assert.equal(rewardEntryLocked?.isLocked, true);
 
   const unlockedSummary = getChapterIndexSummary('reward', ['hub', 'postcards', 'reward'], true);
-  assert.equal(unlockedSummary.activeChapter?.chapterNumber, '08');
-  assert.equal(unlockedSummary.totalAccessibleCount, 9);
+  assert.equal(unlockedSummary.activeChapter?.chapterNumber, '09');
+  assert.equal(unlockedSummary.totalAccessibleCount, 10);
   assert.equal(unlockedSummary.chapters.find((c) => c.id === 'reward')?.isLocked, false);
 });

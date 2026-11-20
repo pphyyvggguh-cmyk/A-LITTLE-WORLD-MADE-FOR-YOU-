@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildMiniOktafSystemInstruction,
   parseMiniOktafApiResult,
   requestMiniOktafChatReply,
   trimChatHistory,
@@ -93,4 +94,48 @@ test('requestMiniOktafChatReply handles real API response and throws honest erro
       }),
     /GEMINI_API_KEY/
   );
+});
+
+test('buildMiniOktafSystemInstruction provides chapter awareness, progressive clues, and completion celebration', () => {
+  const firstHintPrompt = buildMiniOktafSystemInstruction(
+    {
+      currentChapter: 'story',
+      collectedFlowerCount: 2,
+      quest2Step: 0,
+      quest2Completed: false,
+      collectedPolaroidCount: 1,
+      collectedPolaroidIds: ['polaroid-story'],
+    },
+    [{ role: 'user', text: 'Mini Oktaf, kasih petunjuk polaroid dong' }]
+  );
+  assert.match(firstHintPrompt, /Bab 01: Our Story/);
+  assert.match(firstHintPrompt, /1\/5 Polaroid/);
+  assert.match(firstHintPrompt, /JANGAN pernah membocorkan semua lokasi 5 Polaroid sekaligus/);
+  assert.match(firstHintPrompt, /Bab 03 \(Birthday Letters\)/);
+  assert.match(firstHintPrompt, /Jangan langsung menuliskan jawaban lengkap "02-05-2026"/);
+
+  const followUpPrompt = buildMiniOktafSystemInstruction(
+    {
+      currentChapter: 'postcards',
+      collectedFlowerCount: 7,
+      quest2Step: 3,
+      quest2Completed: true,
+      collectedPolaroidCount: 5,
+      collectedPolaroidIds: [
+        'polaroid-story',
+        'polaroid-letters',
+        'polaroid-voices',
+        'polaroid-wishlist',
+        'polaroid-postcards',
+      ],
+    },
+    [
+      { role: 'user', text: 'Kasih hint quest dong' },
+      { role: 'assistant', text: 'Coba cek perlahan ya' },
+      { role: 'user', text: 'Masih bingung, kasih clue lagi' },
+    ]
+  );
+  assert.match(followUpPrompt, /Sudah lengkap 7\/7/);
+  assert.match(followUpPrompt, /Quest 2 \(Three Little Questions\): SUDAH SELESAI \(3\/3\)/);
+  assert.match(followUpPrompt, /Quest 3 \(Find the Polaroids\): SUDAH SELESAI \(5\/5\)/);
 });

@@ -11,9 +11,16 @@ export const MAIN_BOOK_CHAPTERS: readonly BookChapterId[] = [
   'voices',
   'wishlist',
   'postcards',
+  'jar-of-thoughts',
 ] as const;
 
 export const VALID_BOOK_CHAPTER_SET = new Set<string>([...MAIN_BOOK_CHAPTERS, 'reward']);
+
+export function isPublicLeaveAThoughtLocation(pathname: string, hash: string): boolean {
+  const cleanHash = (hash || '').replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
+  const cleanPath = (pathname || '').replace(/^\/+|\/+$/g, '').toLowerCase();
+  return cleanHash === 'leave-a-thought' || cleanPath === 'leave-a-thought';
+}
 
 export function getAvailableBookChapters(
   isRewardUnlocked: boolean,
@@ -65,14 +72,16 @@ export function resolveChapterFromLocation(
 ): BookChapterId | null {
   const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`);
   const queryChapter = params.get('chapter') || params.get('bab');
-  if (isBookChapterId(queryChapter)) {
-    if (queryChapter === 'reward' && !isRewardUnlocked) {
+  const normalizedQuery = queryChapter === 'jar' ? 'jar-of-thoughts' : queryChapter;
+  if (isBookChapterId(normalizedQuery)) {
+    if (normalizedQuery === 'reward' && !isRewardUnlocked) {
       return 'hub';
     }
-    return queryChapter;
+    return normalizedQuery;
   }
 
-  const normalizedHash = hash.replace(/^#\/?/, '').trim();
+  const rawHash = hash.replace(/^#\/?/, '').trim();
+  const normalizedHash = rawHash === 'jar' ? 'jar-of-thoughts' : rawHash;
   if (isBookChapterId(normalizedHash)) {
     if (normalizedHash === 'reward' && !isRewardUnlocked) {
       return 'hub';

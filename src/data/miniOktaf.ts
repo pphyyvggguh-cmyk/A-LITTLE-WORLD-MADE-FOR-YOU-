@@ -117,6 +117,11 @@ export const SECTION_DIALOGUES: Record<string, OktafDialogueEntry> = {
     expression: 'shy',
     message: 'Kartu pos yang masih tersegel ini baru bisa dibuka pas harinya nanti ya ♡',
   },
+  'jar-of-thoughts': {
+    pose: 'curious',
+    expression: 'happy',
+    message: 'Di toples kaca ini ada pesan-pesan hangat yang cuma bisa dibuka satu kali tiap 24 jam ♡',
+  },
   reward: {
     pose: 'celebrating',
     expression: 'laughing',
@@ -160,6 +165,11 @@ export const HUB_CARD_REACTIONS: Record<string, OktafDialogueEntry> = {
     expression: 'happy',
     message: 'Surat-surat kecil yang disimpan khusus buat dibuka di tanggal tertentu.',
   },
+  'jar-of-thoughts': {
+    pose: 'curious',
+    expression: 'wink',
+    message: 'Toples kaca berisi pesan manis dari orang-orang terdekatmu, satu surat sehari ♡',
+  },
 };
 
 export const CURIOUS_TAP_REACTIONS: OktafDialogueEntry[] = [
@@ -198,5 +208,21 @@ export const QUEST_DIALOGUES = {
       count >= total
         ? 'Yeay, ketujuh bunganya lengkap semua! ♡'
         : `Asik, ketemu ${flowerName}! (${count}/${total}) Yuk cari sisa bunganya lagi!`,
+  }),
+  quest2StepSolved: (stepCompleted: number, total: number): OktafDialogueEntry => ({
+    pose: stepCompleted >= total ? 'celebrating' : 'cheering',
+    expression: stepCompleted >= total ? 'laughing' : 'wink',
+    message:
+      stepCompleted >= total
+        ? 'Yeay, tiga-tiganya benar semua! Kado surat buatmu sudah kebuka di Secret Quest ♡'
+        : `Bener! (${stepCompleted}/${total}) Lanjut pertanyaan berikutnya ya Wulan ♡`,
+  }),
+  polaroidCollected: (count: number, total: number, title: string): OktafDialogueEntry => ({
+    pose: count >= total ? 'celebrating' : 'heart',
+    expression: count >= total ? 'laughing' : 'happy',
+    message:
+      count >= total
+        ? 'Keren, 5/5 Polaroid terkumpul! Buka Secret Quest untuk lihat Our Little Heart Gallery ♡'
+        : `Dapat ${title}! (${count}/${total} Polaroid) Tinggal cari sisanya pelan-pelan ya ♡`,
   }),
 };

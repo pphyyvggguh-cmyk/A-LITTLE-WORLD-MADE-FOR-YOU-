@@ -30,6 +30,7 @@ import {
   updateWishlistVisibility,
 } from '../../utils/adminApi';
 import { canViewWishlistEntry, filterWishlistEntries } from '../../utils/wishlist';
+import { formatSafeUiError } from '../../utils/safeError';
 import { WishFormModal } from '../wishlist/WishFormModal';
 
 type PreviewAudience = 'admin' | 'public' | 'couple';
@@ -71,7 +72,8 @@ export function WishlistManager() {
       user.email,
       'oktaf',
       (items) => setEntries(items),
-      (err) => setListError(err.message)
+      (err) =>
+        setListError(formatSafeUiError(err, 'Gagal memuat daftar wishlist.', 'admin'))
     );
     return () => unsub();
   }, [user?.email]);
@@ -120,7 +122,7 @@ export function WishlistManager() {
     } catch (err) {
       setAccessStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan pengaturan akses.',
+        text: formatSafeUiError(err, 'Gagal menyimpan pengaturan akses.', 'admin'),
       });
     } finally {
       setSavingAccess(false);
@@ -132,7 +134,9 @@ export function WishlistManager() {
     try {
       await updateWishlistVisibility(id, nextVis);
     } catch (err) {
-      setListError(err instanceof Error ? err.message : 'Gagal memperbarui visibilitas.');
+      setListError(
+        formatSafeUiError(err, 'Gagal memperbarui visibilitas.', 'admin')
+      );
     }
   };
 
@@ -142,7 +146,9 @@ export function WishlistManager() {
       await deleteWishlistEntry(id);
       setConfirmDeleteId(null);
     } catch (err) {
-      setListError(err instanceof Error ? err.message : 'Gagal menghapus wishlist.');
+      setListError(
+        formatSafeUiError(err, 'Gagal menghapus wishlist.', 'admin')
+      );
     }
   };
 

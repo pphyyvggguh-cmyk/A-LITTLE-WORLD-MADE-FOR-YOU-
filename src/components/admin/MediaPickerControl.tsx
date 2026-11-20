@@ -2,6 +2,7 @@ import { ChangeEvent, useId, useState } from 'react';
 import { FolderOpen, Upload } from 'lucide-react';
 import { MediaAssetItem, uploadMediaFile } from '../../utils/adminApi';
 import { MediaKind } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 
 interface MediaPickerControlProps {
   label: string;
@@ -64,7 +65,7 @@ export function MediaPickerControl({
       onChangeUrl(result.url, result.filename);
       await onMediaRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal mengunggah file.');
+      setError(formatSafeUiError(err, 'Gagal mengunggah file.', 'admin'));
     } finally {
       setUploading(false);
     }

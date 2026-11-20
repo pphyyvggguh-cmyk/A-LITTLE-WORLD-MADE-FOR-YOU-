@@ -105,7 +105,7 @@
       "properties": {
         "sectionId": {
           "type": "string",
-          "enum": ["story", "world", "letters", "video", "miniOktaf", "vinyl"],
+          "enum": ["story", "world", "letters", "video", "miniOktaf", "vinyl", "jar", "heartGallery"],
           "description": "Section document key."
         },
         "payload": {
@@ -762,6 +762,274 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "JarThought": {
+      "title": "JarThought",
+      "description": "Submitted or admin-created thought in the A Jar Full of Thoughts moderation queue (strictly admin-only reads).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique submission identifier."
+        },
+        "senderInitial": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12,
+          "description": "Sender initials (hidden as Someone Special on Wulan view when isAnonymous is true)."
+        },
+        "isAnonymous": {
+          "type": "boolean",
+          "description": "Whether author identity must be displayed as Someone Special."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Short personal thought or wish for Wulan."
+        },
+        "paperStyle": {
+          "type": "string",
+          "enum": ["ivory-linen", "blush-petal", "sage-leaf", "champagne-gold", "burgundy-tint"],
+          "description": "Archival paper color and finish."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "Admin moderation status."
+        },
+        "opened": {
+          "type": "boolean",
+          "description": "Whether this thought has already been opened."
+        },
+        "openedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when opened."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["public", "admin"],
+          "description": "Submission origin."
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Admin UID when created manually by admin."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "senderInitial",
+        "isAnonymous",
+        "message",
+        "paperStyle",
+        "status",
+        "opened",
+        "source",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "JarPoolThought": {
+      "title": "JarPoolThought",
+      "description": "Approved, anonymized thought inside Wulan's active glass jar pool.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique pool thought identifier matching JarThought ID."
+        },
+        "displayAuthor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Masked author label (Someone Special when anonymous)."
+        },
+        "isAnonymous": {
+          "type": "boolean",
+          "description": "Whether original author requested anonymity."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Approved note body."
+        },
+        "paperStyle": {
+          "type": "string",
+          "enum": ["ivory-linen", "blush-petal", "sage-leaf", "champagne-gold", "burgundy-tint"],
+          "description": "Selected archival stationery style."
+        },
+        "isApproved": {
+          "type": "boolean",
+          "description": "Always true inside jarPool."
+        },
+        "opened": {
+          "type": "boolean",
+          "description": "One-time reveal flag."
+        },
+        "openedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp recorded on reveal."
+        },
+        "sortSeed": {
+          "type": "number",
+          "description": "Random seed between 0 and 1."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "displayAuthor",
+        "isAnonymous",
+        "message",
+        "paperStyle",
+        "isApproved",
+        "opened",
+        "sortSeed",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "JarCooldownState": {
+      "title": "JarCooldownState",
+      "description": "Server-authoritative 24-hour cooldown state for daily jar gacha reveals.",
+      "type": "object",
+      "properties": {
+        "stateId": {
+          "type": "string",
+          "enum": ["cooldown"],
+          "description": "Fixed cooldown state document identifier."
+        },
+        "lastOpenedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Trusted server timestamp of the most recent reveal."
+        },
+        "lastOpenedThoughtId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID of the last revealed JarPoolThought."
+        },
+        "totalOpenedCount": {
+          "type": "number",
+          "description": "Cumulative opened count."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["stateId", "totalOpenedCount", "createdAt", "updatedAt"]
+    },
+    "HeartGalleryPhoto": {
+      "title": "HeartGalleryPhoto",
+      "description": "Photo entry displayed in the Quest 3 Our Little Heart Gallery reward.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique Heart Gallery photo document ID."
+        },
+        "imageUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200,
+          "description": "Image asset or Firebase Storage URL."
+        },
+        "storagePath": {
+          "type": "string",
+          "maxLength": 400,
+          "description": "Optional upload storage path reference."
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180,
+          "description": "Memory caption shown when inspecting the Polaroid."
+        },
+        "dateLabel": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Optional date or short subtitle."
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["flowers", "butterflies", "stars", "notes", "stamps", "scrapbook"],
+          "description": "Decorative frame motif chosen for this Polaroid."
+        },
+        "order": {
+          "type": "number",
+          "description": "1-based display sort order."
+        },
+        "isPublished": {
+          "type": "boolean",
+          "description": "Whether the photo is visible in Our Little Heart Gallery."
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the administrator who created the entry."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "imageUrl",
+        "caption",
+        "theme",
+        "order",
+        "isPublished",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -824,6 +1092,30 @@
         "$ref": "#/entities/SecretNote"
       },
       "description": "Stores Our Story secret notes assignable to specific scrapbook pages (publicly readable only when enabled == true)."
+    },
+    "/jarThoughts/{thoughtId}": {
+      "schema": {
+        "$ref": "#/entities/JarThought"
+      },
+      "description": "Stores public friend submissions and admin moderation queue for A Jar Full of Thoughts (strictly admin-only reads)."
+    },
+    "/jarPool/{thoughtId}": {
+      "schema": {
+        "$ref": "#/entities/JarPoolThought"
+      },
+      "description": "Stores approved, anonymized messages inside Wulan's active glass jar pool with atomic one-time reveal locking."
+    },
+    "/jarState/{stateId}": {
+      "schema": {
+        "$ref": "#/entities/JarCooldownState"
+      },
+      "description": "Stores server-time-enforced 24-hour reveal cooldown state (jarState/cooldown)."
+    },
+    "/heartGallery/{photoId}": {
+      "schema": {
+        "$ref": "#/entities/HeartGalleryPhoto"
+      },
+      "description": "Stores curated photos, captions, and decorative themes for Quest 3's Our Little Heart Gallery."
     }
   }
 }

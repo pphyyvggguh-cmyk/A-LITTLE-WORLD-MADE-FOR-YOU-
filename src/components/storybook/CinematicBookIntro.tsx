@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, BookHeart, CalendarHeart, Film, Flower2, Globe2, Mail, Send } from 'lucide-react';
+import { ArrowRight, BookHeart, CalendarHeart, Film, Flower2, Globe2, Mail, Send, Sparkles } from 'lucide-react';
 import {
   BookIntroPhase,
   computeIntroTimeline,
@@ -36,6 +36,7 @@ const PREVIEW_CHAPTERS = [
   { num: '05', title: 'Voices of Love ♡', accent: '#743D4A', icon: Flower2 },
   { num: '06', title: 'Our Future Wishlist ♡', accent: '#455342', icon: CalendarHeart },
   { num: '07', title: 'Postcards From The Future ♡', accent: '#A6533B', icon: Send },
+  { num: '08', title: 'A Jar Full of Thoughts ♡', accent: '#743D4A', icon: Sparkles },
 ];
 
 export function CinematicBookIntro({ onComplete }: CinematicBookIntroProps) {

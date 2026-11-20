@@ -78,8 +78,14 @@ export const STORYBOOK_CHAPTERS: StorybookChapterItem[] = [
     subtitle: 'Surat Tersegel Waktu',
   },
   {
-    id: 'reward',
+    id: 'jar-of-thoughts',
     chapterNumber: '08',
+    title: 'A Jar Full of Thoughts ♡',
+    subtitle: 'Toples Pesan Harian 24 Jam',
+  },
+  {
+    id: 'reward',
+    chapterNumber: '09',
     title: 'Secret Meadow',
     subtitle: 'Hadiah Taman 7 Bunga',
     requiresReward: true,
@@ -166,6 +172,14 @@ export const SECTION_ANIMATION_PROFILES: Record<AppSection, SectionAnimationProf
     petalTint: '#C4A574',
     fireflyTint: '#C4A574',
     accentTone: '#A6533B',
+  },
+  'jar-of-thoughts': {
+    section: 'jar-of-thoughts',
+    moodLabel: 'Toples Cahaya',
+    creatures: ['fireflies', 'star', 'petals'],
+    petalTint: '#E8BFC5',
+    fireflyTint: '#C4A574',
+    accentTone: '#C4A574',
   },
   reward: {
     section: 'reward',

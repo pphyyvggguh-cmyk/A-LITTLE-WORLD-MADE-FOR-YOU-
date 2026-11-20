@@ -3,6 +3,7 @@ import { Eye, EyeOff, Plus, Save, Trash2 } from 'lucide-react';
 import { BirthdayLetter } from '../../data/letters';
 import { saveBirthdayLetters } from '../../utils/adminApi';
 import { SiteContentPayload } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 
 interface LettersManagerProps {
   letters: BirthdayLetter[];
@@ -75,7 +76,7 @@ export function LettersManager({ letters, onSaved }: LettersManagerProps) {
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan surat.',
+        text: formatSafeUiError(err, 'Gagal menyimpan surat.', 'admin'),
       });
     } finally {
       setSaving(false);

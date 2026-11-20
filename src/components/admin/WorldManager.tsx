@@ -3,6 +3,7 @@ import { Lock, Save, Unlock } from 'lucide-react';
 import { WorldDestination } from '../../data/destinations';
 import { MediaAssetItem, saveWorldDestinations } from '../../utils/adminApi';
 import { SiteContentPayload } from '../../utils/adminContent';
+import { formatSafeUiError } from '../../utils/safeError';
 import { MediaPickerControl } from './MediaPickerControl';
 
 interface WorldManagerProps {
@@ -47,7 +48,7 @@ export function WorldManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan destinasi.',
+        text: formatSafeUiError(err, 'Gagal menyimpan destinasi.', 'admin'),
       });
     } finally {
       setSaving(false);

@@ -16,6 +16,7 @@ import {
 } from '../data/vinyl';
 import { DEFAULT_VOICES_OF_LOVE, VoiceOfLoveEntry } from '../data/voices';
 import { DEFAULT_SECRET_NOTES, type StorySecretNote } from '../data/hiddenMessages';
+import { DEFAULT_HEART_GALLERY_PHOTOS, type HeartGalleryPhoto } from '../data/quests';
 import { fetchSiteContent } from '../utils/adminApi';
 import type { MiniOktafContentConfig, SiteContentPayload } from '../utils/adminContent';
 
@@ -29,6 +30,7 @@ interface ContentState {
   secretNotes: StorySecretNote[];
   vinylConfig: VinylPlayerConfig;
   vinylPlaylist: VinylTrack[];
+  heartGallery: HeartGalleryPhoto[];
   updatedAt: string;
   hydrated: boolean;
 
@@ -50,6 +52,7 @@ export const useContentStore = create<ContentState>((set) => ({
   secretNotes: DEFAULT_SECRET_NOTES,
   vinylConfig: DEFAULT_VINYL_CONFIG,
   vinylPlaylist: DEFAULT_VINYL_PLAYLIST,
+  heartGallery: DEFAULT_HEART_GALLERY_PHOTOS,
   updatedAt: '',
   hydrated: false,
 
@@ -66,6 +69,7 @@ export const useContentStore = create<ContentState>((set) => ({
         secretNotes: payload.secretNotes ?? DEFAULT_SECRET_NOTES,
         vinylConfig: payload.vinylConfig ?? DEFAULT_VINYL_CONFIG,
         vinylPlaylist: payload.vinylPlaylist ?? DEFAULT_VINYL_PLAYLIST,
+        heartGallery: payload.heartGallery ?? DEFAULT_HEART_GALLERY_PHOTOS,
         updatedAt: payload.updatedAt,
         hydrated: true,
       });
@@ -86,6 +90,7 @@ export const useContentStore = create<ContentState>((set) => ({
       secretNotes: payload.secretNotes ?? DEFAULT_SECRET_NOTES,
       vinylConfig: payload.vinylConfig ?? DEFAULT_VINYL_CONFIG,
       vinylPlaylist: payload.vinylPlaylist ?? DEFAULT_VINYL_PLAYLIST,
+      heartGallery: payload.heartGallery ?? DEFAULT_HEART_GALLERY_PHOTOS,
       updatedAt: payload.updatedAt,
       hydrated: true,
     });

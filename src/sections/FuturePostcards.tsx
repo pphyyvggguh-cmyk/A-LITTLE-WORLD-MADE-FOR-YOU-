@@ -7,6 +7,7 @@ import {
   StorybookButton,
 } from '../components/editorial/StorybookPrimitives';
 import { BotanicalFlowerSVG } from '../components/Flower';
+import { HiddenPolaroidSpot } from '../components/quests/HiddenPolaroidSpot';
 import { PostcardCard } from '../components/postcards/PostcardCard';
 import { PostcardFormModal } from '../components/postcards/PostcardFormModal';
 import { DecorationSVG } from '../components/story/ScrapbookDecorations';
@@ -33,6 +34,7 @@ import {
   classifyPostcardBucket,
 } from '../utils/postcards';
 import { fetchTrustedServerNowMs, getTrustedNowMs } from '../utils/serverTime';
+import { formatSafeUiError } from '../utils/safeError';
 
 export function FuturePostcards() {
   const {
@@ -87,7 +89,7 @@ export function FuturePostcards() {
         setLoadingList(false);
       },
       (err) => {
-        setSyncError(err.message);
+        setSyncError(formatSafeUiError(err, 'Gagal memuat kartu pos.', 'public'));
         setLoadingList(false);
       }
     );
@@ -161,7 +163,7 @@ export function FuturePostcards() {
     try {
       await deletePostcard(id);
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Gagal menghapus kartu pos.');
+      setSyncError(formatSafeUiError(err, 'Gagal menghapus kartu pos.', 'public'));
     }
   };
 
@@ -221,7 +223,7 @@ export function FuturePostcards() {
             <div className="space-y-1 pr-6">
               <p className="font-serif text-base font-semibold text-[#38271F]">
                 {user && !coupleRole
-                  ? `Akun ${user.email} belum terdaftar sebagai Oktaf atau Wulan`
+                  ? 'Akun Google yang sedang masuk belum terdaftar sebagai Oktaf atau Wulan'
                   : 'Masuk sebagai Oktaf atau Wulan untuk menulis & membuka kartu pos pribadi'}
               </p>
               <p className="text-xs text-[#38271F]/72 leading-relaxed">
@@ -279,8 +281,8 @@ export function FuturePostcards() {
                   onClick={() => setActiveBucket(bucket)}
                   className={`min-h-[40px] py-1.5 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                     active
-                      ? 'text-[#A6533B] border-[#A6533B]'
-                      : 'text-[#38271F]/65 border-transparent hover:text-[#38271F]'
+                      ? 'text-[#552E3D] border-[#A95F70]'
+                      : 'text-[#6E5F63] border-transparent hover:text-[#30272A]'
                   }`}
                 >
                   {label}
@@ -330,9 +332,9 @@ export function FuturePostcards() {
             <button
               type="button"
               onClick={handleRequestWrite}
-              className="min-h-[44px] px-5 py-2.5 rounded-lg bg-[#38271F] text-[#F4EBDD] text-xs font-semibold inline-flex items-center gap-2 hover:bg-[#4e382d] cursor-pointer"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#552E3D] text-[#FFFDFC] text-xs font-semibold inline-flex items-center gap-2 hover:bg-[#3f202c] cursor-pointer"
             >
-              <Mail className="w-4 h-4 text-[#E8BFC5]" />
+              <Mail className="w-4 h-4 text-[#EBC9CB]" />
               <span>{coupleRole ? 'Tulis Kartu Pos Pertama' : 'Masuk untuk Menulis'}</span>
             </button>
           </section>
@@ -373,6 +375,11 @@ export function FuturePostcards() {
             })}
           </section>
         )}
+
+        {/* Subtle desk center Polaroid collectible (Quest 3) */}
+        <div className="pt-2 pb-12 sm:pb-4 flex items-center justify-center">
+          <HiddenPolaroidSpot polaroidId="polaroid-postcards" />
+        </div>
       </div>
 
       {/* Create / Edit Postcard Modal */}

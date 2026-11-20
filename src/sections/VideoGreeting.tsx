@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
+  ArrowLeft,
   Film,
   Home,
   Maximize2,
@@ -115,22 +116,33 @@ export function VideoGreeting() {
   };
 
   return (
-    <main className="relative min-h-full w-full bg-[#1C1614] text-[#F4EBDD] px-4 sm:px-8 pt-6 sm:pt-8 pb-28 overflow-x-hidden">
+    <main className="relative min-h-full w-full bg-[#1C1614] text-[#F8F1E8] px-4 sm:px-8 pt-4 sm:pt-6 pb-36 md:pb-24 overflow-x-hidden">
       <div className="relative z-10 max-w-4xl mx-auto">
-        <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#F4EBDD]/14">
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => navigateTo('hub')}
+            className="min-h-[38px] -ml-1.5 px-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-[#C9A879] hover:text-[#F8F1E8] transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Kembali ke Beranda</span>
+          </button>
+        </div>
+
+        <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#F8F1E8]/14">
           <div className="space-y-1.5">
-            <p className="text-xs tracking-[0.11em] uppercase text-[#C4A574] font-medium">
+            <p className="text-xs tracking-[0.11em] uppercase text-[#C9A879] font-medium">
               {videoConfig.subtitle || '04 · Ruang Putar Khusus'}
             </p>
-            <h1 className="font-serif text-[clamp(1.85rem,4vw,2.75rem)] font-semibold leading-[1.16] tracking-tight text-[#F4EBDD]">
+            <h1 className="font-serif text-[clamp(1.85rem,4vw,2.75rem)] font-semibold leading-[1.16] tracking-tight text-[#F8F1E8]">
               {videoConfig.title}
             </h1>
-            <p className="font-hand text-xl text-[#E8BFC5]/88">{videoConfig.description}</p>
+            <p className="font-hand text-xl text-[#EBC9CB]/90">{videoConfig.description}</p>
           </div>
 
           {/* Flower #7 tucked gently on the vintage ticket corner */}
           <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
-            <div className="px-3 py-1 rounded border border-dashed border-[#C4A574]/55 text-[10px] tracking-widest uppercase text-[#C4A574]">
+            <div className="px-3 py-1 rounded border border-dashed border-[#C9A879]/55 text-[10px] tracking-widest uppercase text-[#C9A879]">
               {videoConfig.ticketLabel || 'TIKET · 19.02'}
             </div>
             <HiddenFlowerSpot flowerId="flower-tulip" />

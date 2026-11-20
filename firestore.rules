@@ -40,18 +40,40 @@ service cloud.firestore {
       return isVerifiedEmail() && userEmailLower() == 'oktafmbul0@gmail.com';
     }
 
+    function isBootstrappedWulan() {
+      return isVerifiedEmail() && userEmailLower() == 'wulanainindya92@gmail.com';
+    }
+
     function isAdmin() {
       return isBootstrappedAdmin()
         || (isVerifiedEmail() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
     }
 
     function isAuthorizedWulanFromConfig() {
-      return isVerifiedEmail()
-        && exists(/databases/$(database)/documents/config/access)
-        && get(/databases/$(database)/documents/config/access).data.wishlistPrivacyMode == 'couple-only'
-        && get(/databases/$(database)/documents/config/access).data.wulanEmail is string
-        && get(/databases/$(database)/documents/config/access).data.wulanEmail.size() > 0
-        && userEmailLower() == get(/databases/$(database)/documents/config/access).data.wulanEmail.lower();
+      return isVerifiedEmail() && (
+        (
+          !exists(/databases/$(database)/documents/config/access)
+          && isBootstrappedWulan()
+        )
+        || (
+          exists(/databases/$(database)/documents/config/access)
+          && get(/databases/$(database)/documents/config/access).data.wishlistPrivacyMode == 'couple-only'
+          && (
+            (
+              get(/databases/$(database)/documents/config/access).data.wulanEmail is string
+              && get(/databases/$(database)/documents/config/access).data.wulanEmail.size() > 0
+              && userEmailLower() == get(/databases/$(database)/documents/config/access).data.wulanEmail.lower()
+            )
+            || (
+              (
+                !(get(/databases/$(database)/documents/config/access).data.wulanEmail is string)
+                || get(/databases/$(database)/documents/config/access).data.wulanEmail.size() == 0
+              )
+              && isBootstrappedWulan()
+            )
+          )
+        )
+      );
     }
 
     function isCoupleMember() {
@@ -102,7 +124,7 @@ service cloud.firestore {
     }
 
     function isValidSiteContentSection(data, sectionId) {
-      return sectionId in ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl']
+      return sectionId in ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl', 'jar', 'heartGallery']
         && data.keys().hasAll(['sectionId', 'payload', 'updatedBy', 'createdAt', 'updatedAt'])
         && data.keys().hasOnly(['sectionId', 'payload', 'updatedBy', 'createdAt', 'updatedAt'])
         && data.sectionId == sectionId
@@ -451,6 +473,144 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidJarThought(data, thoughtId) {
+      return data.keys().hasAll([
+          'id',
+          'senderInitial',
+          'isAnonymous',
+          'message',
+          'paperStyle',
+          'status',
+          'opened',
+          'source',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'senderInitial',
+          'isAnonymous',
+          'message',
+          'paperStyle',
+          'status',
+          'opened',
+          'openedAt',
+          'source',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == thoughtId && isValidId(data.id)
+        && data.senderInitial is string && data.senderInitial.size() >= 1 && data.senderInitial.size() <= 12
+        && data.isAnonymous is bool
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 500
+        && data.paperStyle in ['ivory-linen', 'blush-petal', 'sage-leaf', 'champagne-gold', 'burgundy-tint']
+        && data.status in ['pending', 'approved', 'rejected']
+        && data.opened is bool
+        && (!('openedAt' in data) || data.openedAt is timestamp)
+        && data.source in ['public', 'admin']
+        && (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid.size() <= 128))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidJarPoolThought(data, thoughtId) {
+      return data.keys().hasAll([
+          'id',
+          'displayAuthor',
+          'isAnonymous',
+          'message',
+          'paperStyle',
+          'isApproved',
+          'opened',
+          'sortSeed',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'displayAuthor',
+          'isAnonymous',
+          'message',
+          'paperStyle',
+          'isApproved',
+          'opened',
+          'openedAt',
+          'sortSeed',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == thoughtId && isValidId(data.id)
+        && data.displayAuthor is string && data.displayAuthor.size() >= 1 && data.displayAuthor.size() <= 40
+        && data.isAnonymous is bool
+        && (!data.isAnonymous || data.displayAuthor == 'Someone Special')
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 500
+        && data.paperStyle in ['ivory-linen', 'blush-petal', 'sage-leaf', 'champagne-gold', 'burgundy-tint']
+        && data.isApproved == true
+        && data.opened is bool
+        && (!('openedAt' in data) || data.openedAt is timestamp)
+        && data.sortSeed is number && data.sortSeed >= 0 && data.sortSeed <= 1
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidJarCooldown(data, stateId) {
+      return stateId == 'cooldown'
+        && data.keys().hasAll(['stateId', 'totalOpenedCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'stateId',
+          'lastOpenedAt',
+          'lastOpenedThoughtId',
+          'totalOpenedCount',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.stateId == 'cooldown'
+        && (!('lastOpenedAt' in data) || data.lastOpenedAt is timestamp)
+        && (!('lastOpenedThoughtId' in data) || (data.lastOpenedThoughtId is string && data.lastOpenedThoughtId.size() <= 128))
+        && data.totalOpenedCount is number && data.totalOpenedCount >= 0 && data.totalOpenedCount <= 100000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidHeartGalleryPhoto(data, photoId) {
+      return data.keys().hasAll([
+          'id',
+          'imageUrl',
+          'caption',
+          'theme',
+          'order',
+          'isPublished',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'imageUrl',
+          'storagePath',
+          'caption',
+          'dateLabel',
+          'theme',
+          'order',
+          'isPublished',
+          'ownerUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == photoId && isValidId(data.id)
+        && data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 1200
+        && (!('storagePath' in data) || (data.storagePath is string && data.storagePath.size() <= 400))
+        && data.caption is string && data.caption.size() >= 1 && data.caption.size() <= 180
+        && (!('dateLabel' in data) || (data.dateLabel is string && data.dateLabel.size() <= 60))
+        && data.theme in ['flowers', 'butterflies', 'stars', 'notes', 'stamps', 'scrapbook']
+        && data.order is number && data.order >= 1 && data.order <= 500
+        && data.isPublished is bool
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // --- Collection Rules ---
 
     // 1. Admins registry
@@ -476,7 +636,18 @@ service cloud.firestore {
     // 2. Private couple & admin authorization config
     match /config/{configId} {
       allow get: if isValidId(configId)
-        && (isAdmin() || (isVerifiedEmail() && existing().wulanEmail is string && existing().wulanEmail.size() > 0 && userEmailLower() == existing().wulanEmail.lower()));
+        && (
+          isAdmin()
+          || (resource == null && isBootstrappedWulan())
+          || (
+            resource != null
+            && isVerifiedEmail()
+            && (
+              (existing().wulanEmail is string && existing().wulanEmail.size() > 0 && userEmailLower() == existing().wulanEmail.lower())
+              || (isBootstrappedWulan() && (!(existing().wulanEmail is string) || existing().wulanEmail.size() == 0))
+            )
+          )
+        );
       allow list: if false;
       allow create: if isValidId(configId)
         && isAdmin()
@@ -579,13 +750,21 @@ service cloud.firestore {
         && (
           existing().visibility == 'public'
           || isAdmin()
-          || (isVerifiedEmail() && existing().allowedEmails is list && userEmailLower() in existing().allowedEmails && isCoupleMember())
+          || (
+            isVerifiedEmail()
+            && isCoupleMember()
+            && (
+              existing().creatorEmail == userEmailLower()
+              || (existing().allowedEmails is list && userEmailLower() in existing().allowedEmails)
+            )
+          )
         );
       allow list: if resource.data.visibility == 'public'
         || (
           isVerifiedEmail()
           && (
             userEmailLower() == 'oktafmbul0@gmail.com'
+            || resource.data.creatorEmail == userEmailLower()
             || (
               resource.data.allowedEmails is list
               && resource.data.allowedEmails.size() <= 4
@@ -653,13 +832,21 @@ service cloud.firestore {
         && (
           existing().visibility == 'public'
           || isAdmin()
-          || (isVerifiedEmail() && existing().allowedEmails is list && userEmailLower() in existing().allowedEmails && isCoupleMember())
+          || (
+            isVerifiedEmail()
+            && isCoupleMember()
+            && (
+              existing().senderEmail == userEmailLower()
+              || (existing().allowedEmails is list && userEmailLower() in existing().allowedEmails)
+            )
+          )
         );
       allow list: if resource.data.visibility == 'public'
         || (
           isVerifiedEmail()
           && (
             userEmailLower() == 'oktafmbul0@gmail.com'
+            || resource.data.senderEmail == userEmailLower()
             || (
               resource.data.allowedEmails is list
               && resource.data.allowedEmails.size() <= 4
@@ -811,6 +998,159 @@ service cloud.firestore {
           'updatedAt'
         ]);
       allow delete: if isValidId(noteId) && isAdmin();
+    }
+
+    // 10. A Jar Full of Thoughts — Moderation Queue (Public create-only pending notes; zero friend/public reads)
+    match /jarThoughts/{thoughtId} {
+      allow get: if isValidId(thoughtId) && isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(thoughtId)
+        && isValidJarThought(incoming(), thoughtId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (
+            incoming().source == 'public'
+            && incoming().status == 'pending'
+            && incoming().opened == false
+            && !('openedAt' in incoming())
+            && !('ownerUid' in incoming())
+          )
+          || (
+            isAdmin()
+            && incoming().source == 'admin'
+            && incoming().ownerUid == request.auth.uid
+            && (!('openedAt' in incoming()) || incoming().openedAt == request.time)
+          )
+        );
+      allow update: if isValidId(thoughtId)
+        && isValidJarThought(incoming(), thoughtId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().source == existing().source
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'senderInitial',
+          'isAnonymous',
+          'message',
+          'paperStyle',
+          'status',
+          'opened',
+          'openedAt',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(thoughtId) && isAdmin();
+    }
+
+    // 11. A Jar Full of Thoughts — Approved & Anonymized Pool (Atomic 1-at-a-time daily reveal)
+    match /jarPool/{thoughtId} {
+      allow get: if isValidId(thoughtId) && (existing().isApproved == true || isAdmin());
+      allow list: if resource.data.isApproved == true || isBootstrappedAdmin();
+      allow create: if isValidId(thoughtId)
+        && isAdmin()
+        && isValidJarPoolThought(incoming(), thoughtId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(thoughtId)
+        && isValidJarPoolThought(incoming(), thoughtId)
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            existing().isApproved == true
+            && existing().opened == false
+            && incoming().opened == true
+            && incoming().openedAt == request.time
+            && incoming().displayAuthor == existing().displayAuthor
+            && incoming().isAnonymous == existing().isAnonymous
+            && incoming().message == existing().message
+            && incoming().paperStyle == existing().paperStyle
+            && incoming().isApproved == existing().isApproved
+            && incoming().sortSeed == existing().sortSeed
+            && incoming().diff(existing()).affectedKeys().hasOnly(['opened', 'openedAt', 'updatedAt'])
+            && getAfter(/databases/$(database)/documents/jarState/cooldown).data.lastOpenedThoughtId == thoughtId
+            && getAfter(/databases/$(database)/documents/jarState/cooldown).data.lastOpenedAt == request.time
+          )
+        );
+      allow delete: if isValidId(thoughtId) && isAdmin();
+    }
+
+    // 12. A Jar Full of Thoughts — Trusted 24h Cooldown State
+    match /jarState/{stateId} {
+      allow get: if isValidId(stateId) && stateId == 'cooldown';
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(stateId)
+        && stateId == 'cooldown'
+        && isValidJarCooldown(incoming(), stateId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            incoming().lastOpenedAt == request.time
+            && incoming().totalOpenedCount == 1
+            && isValidId(incoming().lastOpenedThoughtId)
+            && getAfter(/databases/$(database)/documents/jarPool/$(incoming().lastOpenedThoughtId)).data.opened == true
+            && getAfter(/databases/$(database)/documents/jarPool/$(incoming().lastOpenedThoughtId)).data.openedAt == request.time
+          )
+        );
+      allow update: if isValidId(stateId)
+        && stateId == 'cooldown'
+        && isValidJarCooldown(incoming(), stateId)
+        && incoming().stateId == existing().stateId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            (!('lastOpenedAt' in existing()) || request.time >= existing().lastOpenedAt + duration.value(24, 'h'))
+            && incoming().lastOpenedAt == request.time
+            && incoming().totalOpenedCount == existing().totalOpenedCount + 1
+            && isValidId(incoming().lastOpenedThoughtId)
+            && getAfter(/databases/$(database)/documents/jarPool/$(incoming().lastOpenedThoughtId)).data.opened == true
+            && getAfter(/databases/$(database)/documents/jarPool/$(incoming().lastOpenedThoughtId)).data.openedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'lastOpenedAt',
+              'lastOpenedThoughtId',
+              'totalOpenedCount',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(stateId) && stateId == 'cooldown' && isAdmin();
+    }
+
+    // 13. Quest 3 — Our Little Heart Gallery (Published entries readable for gallery; Admin-only writes)
+    match /heartGallery/{photoId} {
+      allow get: if isValidId(photoId) && (existing().isPublished == true || isAdmin());
+      allow list: if resource.data.isPublished == true || isBootstrappedAdmin();
+      allow create: if isValidId(photoId)
+        && isAdmin()
+        && isValidHeartGalleryPhoto(incoming(), photoId)
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(photoId)
+        && isValidHeartGalleryPhoto(incoming(), photoId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'imageUrl',
+          'storagePath',
+          'caption',
+          'dateLabel',
+          'theme',
+          'order',
+          'isPublished',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(photoId) && isAdmin();
     }
   }
 }

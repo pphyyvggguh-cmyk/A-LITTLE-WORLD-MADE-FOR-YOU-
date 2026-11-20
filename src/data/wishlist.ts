@@ -35,12 +35,13 @@ export interface AccessConfig {
 }
 
 export const PRIMARY_ADMIN_EMAIL = 'oktafmbul0@gmail.com';
+export const PRIMARY_WULAN_EMAIL = 'wulanainindya92@gmail.com';
 
 export const DEFAULT_ACCESS_CONFIG: AccessConfig = {
   configId: 'access',
   adminEmail: PRIMARY_ADMIN_EMAIL,
   oktafEmail: PRIMARY_ADMIN_EMAIL,
-  wulanEmail: '',
+  wulanEmail: PRIMARY_WULAN_EMAIL,
   wishlistPrivacyMode: 'couple-only',
 };
 

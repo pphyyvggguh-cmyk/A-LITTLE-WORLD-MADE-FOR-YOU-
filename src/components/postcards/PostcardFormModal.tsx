@@ -13,6 +13,7 @@ import {
 } from '../../data/postcards';
 import { fetchPostcardSecret, uploadPostcardPhoto } from '../../utils/adminApi';
 import { validatePostcardInput } from '../../utils/postcards';
+import { formatSafeUiError } from '../../utils/safeError';
 
 interface PostcardFormModalProps {
   mode: 'create' | 'edit';
@@ -128,7 +129,7 @@ export function PostcardFormModal({
       setPhotoUrl(url);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Gagal mengunggah foto kartu pos.'
+        formatSafeUiError(err, 'Gagal mengunggah foto kartu pos.', 'public')
       );
     } finally {
       setUploadingPhoto(false);
@@ -178,7 +179,7 @@ export function PostcardFormModal({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Kartu pos belum berhasil disimpan. Coba lagi sebentar ya.'
+        formatSafeUiError(err, 'Kartu pos belum berhasil disimpan. Coba lagi sebentar ya.', 'public')
       );
     } finally {
       setSaving(false);

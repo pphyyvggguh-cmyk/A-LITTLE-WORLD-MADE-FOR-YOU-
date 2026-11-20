@@ -6,6 +6,7 @@ import type { VinylPlayerConfig, VinylTrack } from '../data/vinyl.ts';
 import type { BirthdayVideoConfig } from '../data/video.ts';
 import type { VoiceOfLoveEntry } from '../data/voices.ts';
 import type { StorySecretNote } from '../data/hiddenMessages.ts';
+import type { HeartGalleryPhoto } from '../data/quests.ts';
 
 export type MediaKind = 'image' | 'audio' | 'video';
 
@@ -25,6 +26,7 @@ export interface SiteContentPayload {
   secretNotes?: StorySecretNote[];
   vinylConfig?: VinylPlayerConfig;
   vinylPlaylist?: VinylTrack[];
+  heartGallery?: HeartGalleryPhoto[];
   updatedAt: string;
 }
 
@@ -166,6 +168,7 @@ export function reorderVoiceEntry(
 export function collectMediaUsageMap(
   content: Pick<SiteContentPayload, 'storyPages' | 'destinations' | 'videoConfig' | 'voices'> & {
     vinylPlaylist?: VinylTrack[];
+    heartGallery?: HeartGalleryPhoto[];
   }
 ): Record<string, string[]> {
   const usage: Record<string, string[]> = {};
@@ -199,6 +202,10 @@ export function collectMediaUsageMap(
 
   for (const trackItem of content.vinylPlaylist || []) {
     track(trackItem.thumbnailUrl, `Vinyl Player · ${trackItem.title} (Cover)`);
+  }
+
+  for (const photo of content.heartGallery || []) {
+    track(photo.imageUrl, `Heart Gallery · ${photo.caption}`);
   }
 
   return usage;

@@ -79,12 +79,23 @@ import {
 } from './postcards';
 import { DEFAULT_SECRET_NOTES, type StorySecretNote } from '../data/hiddenMessages';
 import {
+  DEFAULT_HEART_GALLERY_PHOTOS,
+  type HeartGalleryPhoto,
+  type HeartGalleryTheme,
+} from '../data/quests';
+import {
+  normalizeHeartGalleryOrder,
+  sanitizeHeartTheme,
+  validateHeartGalleryPhotoInput,
+} from './quests';
+import {
   normalizeSecretNote,
   normalizeSecretNoteId,
   type SecretNoteValidationInput,
   sortSecretNotes,
   validateSecretNoteInput,
 } from './secretNotes';
+import { formatSafeUiError } from './safeError';
 
 export interface MediaAssetItem {
   id?: string;
@@ -121,7 +132,7 @@ function timestampToIso(value: unknown): string {
 function requireVerifiedAdminUser() {
   const user = auth.currentUser;
   if (!user || !isAuthorizedAdminEmail(user.email, user.emailVerified)) {
-    throw new Error('Akses ditolak: harap masuk menggunakan akun Google admin terverifikasi (oktafmbul0@gmail.com).');
+    throw new Error('Akses ditolak: harap masuk menggunakan akun Google admin terverifikasi.');
   }
   return user;
 }
@@ -167,10 +178,11 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     secretNotes: structuredClone(DEFAULT_SECRET_NOTES),
     vinylConfig: structuredClone(DEFAULT_VINYL_CONFIG),
     vinylPlaylist: structuredClone(DEFAULT_VINYL_PLAYLIST),
+    heartGallery: structuredClone(DEFAULT_HEART_GALLERY_PHOTOS),
     updatedAt: '',
   };
 
-  const sectionIds = ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl'] as const;
+  const sectionIds = ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl', 'heartGallery'] as const;
   const sectionSnaps = await Promise.all(
     sectionIds.map((id) => getDoc(doc(db, 'siteContent', id)).catch(() => null))
   );
@@ -180,7 +192,8 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     if (iso && (!latestIso || iso > latestIso)) latestIso = iso;
   };
 
-  const [storySnap, worldSnap, lettersSnap, videoSnap, oktafSnap, vinylSnap] = sectionSnaps;
+  const [storySnap, worldSnap, lettersSnap, videoSnap, oktafSnap, vinylSnap, heartGalleryMetaSnap] =
+    sectionSnaps;
   let secretNotesSeededInDb = false;
 
   if (storySnap?.exists()) {
@@ -357,6 +370,39 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     }
   } catch {
     // Keep DEFAULT_SECRET_NOTES fallback if offline
+  }
+
+  const heartGallerySeededInDb = Boolean(
+    heartGalleryMetaSnap?.exists() && heartGalleryMetaSnap.data()?.payload?.seeded
+  );
+  try {
+    const hgQuery = adminView
+      ? collection(db, 'heartGallery')
+      : query(collection(db, 'heartGallery'), where('isPublished', '==', true));
+    const hgDocs = await getDocs(hgQuery);
+    const loadedPhotos: HeartGalleryPhoto[] = hgDocs.docs.map((d) => {
+      const raw = d.data();
+      const updated = timestampToIso(raw.updatedAt);
+      trackLatest(updated);
+      return {
+        id: String(raw.id || d.id),
+        imageUrl: String(raw.imageUrl || ''),
+        storagePath: typeof raw.storagePath === 'string' ? raw.storagePath : undefined,
+        caption: String(raw.caption || ''),
+        dateLabel: typeof raw.dateLabel === 'string' ? raw.dateLabel : '',
+        theme: sanitizeHeartTheme(raw.theme),
+        order: typeof raw.order === 'number' ? raw.order : 1,
+        isPublished: raw.isPublished !== false,
+        ownerUid: typeof raw.ownerUid === 'string' ? raw.ownerUid : undefined,
+        createdAt: timestampToIso(raw.createdAt),
+        updatedAt: updated,
+      };
+    });
+    if (loadedPhotos.length > 0 || heartGallerySeededInDb) {
+      defaults.heartGallery = normalizeHeartGalleryOrder(loadedPhotos);
+    }
+  } catch {
+    // Keep DEFAULT_HEART_GALLERY_PHOTOS fallback if offline
   }
 
   defaults.updatedAt = latestIso;
@@ -956,7 +1002,11 @@ export function subscribeWishlistEntries(
         try {
           handleFirestoreError(error, OperationType.LIST, 'wishlist');
         } catch (wrapped) {
-          onError(wrapped instanceof Error ? wrapped : new Error(String(wrapped)));
+          onError(
+            new Error(
+              formatSafeUiError(wrapped, 'Gagal memuat daftar wishlist.', 'admin')
+            )
+          );
         }
       }
     );
@@ -965,6 +1015,7 @@ export function subscribeWishlistEntries(
   const buckets = new Map<string, Map<string, WishlistEntry>>([
     ['public', new Map()],
     ['private', new Map()],
+    ['creator', new Map()],
   ]);
 
   const unsubPublic = onSnapshot(
@@ -981,17 +1032,23 @@ export function subscribeWishlistEntries(
       try {
         handleFirestoreError(error, OperationType.LIST, 'wishlist');
       } catch (wrapped) {
-        onError(wrapped instanceof Error ? wrapped : new Error(String(wrapped)));
+        onError(
+          new Error(
+            formatSafeUiError(wrapped, 'Gagal memuat daftar wishlist.', 'public')
+          )
+        );
       }
     }
   );
 
   let unsubCouple: (() => void) | null = null;
+  let unsubCreator: (() => void) | null = null;
   if (role === 'wulan' && userEmail) {
+    const normalizedWulan = normalizeEmail(userEmail);
     unsubCouple = onSnapshot(
       query(
         collection(db, 'wishlist'),
-        where('allowedEmails', 'array-contains', normalizeEmail(userEmail))
+        where('allowedEmails', 'array-contains', normalizedWulan)
       ),
       (snapshot) => {
         const next = new Map<string, WishlistEntry>();
@@ -1005,15 +1062,36 @@ export function subscribeWishlistEntries(
         try {
           handleFirestoreError(error, OperationType.LIST, 'wishlist');
         } catch (wrapped) {
-          onError(wrapped instanceof Error ? wrapped : new Error(String(wrapped)));
+          onError(
+            new Error(
+              formatSafeUiError(wrapped, 'Gagal memuat catatan wishlist.', 'public')
+            )
+          );
         }
       }
+    );
+
+    unsubCreator = onSnapshot(
+      query(
+        collection(db, 'wishlist'),
+        where('creatorEmail', '==', normalizedWulan)
+      ),
+      (snapshot) => {
+        const next = new Map<string, WishlistEntry>();
+        for (const d of snapshot.docs) {
+          next.set(d.id, mapWishlistDoc(d.id, d.data() as Record<string, unknown>));
+        }
+        buckets.set('creator', next);
+        emitMerged(buckets);
+      },
+      () => {}
     );
   }
 
   return () => {
     unsubPublic();
     if (unsubCouple) unsubCouple();
+    if (unsubCreator) unsubCreator();
   };
 }
 
@@ -1224,7 +1302,11 @@ export function subscribePostcardEnvelopes(
         try {
           handleFirestoreError(error, OperationType.LIST, 'postcards');
         } catch (wrapped) {
-          onError(wrapped instanceof Error ? wrapped : new Error(String(wrapped)));
+          onError(
+            new Error(
+              formatSafeUiError(wrapped, 'Gagal memuat kartu pos.', 'admin')
+            )
+          );
         }
       }
     );
@@ -1233,6 +1315,7 @@ export function subscribePostcardEnvelopes(
   const buckets = new Map<string, Map<string, PostcardEnvelope>>([
     ['public', new Map()],
     ['private', new Map()],
+    ['sender', new Map()],
   ]);
 
   const unsubPublic = onSnapshot(
@@ -1249,17 +1332,23 @@ export function subscribePostcardEnvelopes(
       try {
         handleFirestoreError(error, OperationType.LIST, 'postcards');
       } catch (wrapped) {
-        onError(wrapped instanceof Error ? wrapped : new Error(String(wrapped)));
+        onError(
+          new Error(
+            formatSafeUiError(wrapped, 'Gagal memuat kartu pos.', 'public')
+          )
+        );
       }
     }
   );
 
   let unsubCouple: (() => void) | null = null;
+  let unsubSender: (() => void) | null = null;
   if (role === 'wulan' && userEmail) {
+    const normalizedWulan = normalizeEmail(userEmail);
     unsubCouple = onSnapshot(
       query(
         collection(db, 'postcards'),
-        where('allowedEmails', 'array-contains', normalizeEmail(userEmail))
+        where('allowedEmails', 'array-contains', normalizedWulan)
       ),
       (snapshot) => {
         const next = new Map<string, PostcardEnvelope>();
@@ -1273,15 +1362,36 @@ export function subscribePostcardEnvelopes(
         try {
           handleFirestoreError(error, OperationType.LIST, 'postcards');
         } catch (wrapped) {
-          onError(wrapped instanceof Error ? wrapped : new Error(String(wrapped)));
+          onError(
+            new Error(
+              formatSafeUiError(wrapped, 'Gagal memuat kartu pos.', 'public')
+            )
+          );
         }
       }
+    );
+
+    unsubSender = onSnapshot(
+      query(
+        collection(db, 'postcards'),
+        where('senderEmail', '==', normalizedWulan)
+      ),
+      (snapshot) => {
+        const next = new Map<string, PostcardEnvelope>();
+        for (const d of snapshot.docs) {
+          next.set(d.id, mapPostcardEnvelopeDoc(d.id, d.data() as Record<string, unknown>));
+        }
+        buckets.set('sender', next);
+        emitMerged(buckets);
+      },
+      () => {}
     );
   }
 
   return () => {
     unsubPublic();
     if (unsubCouple) unsubCouple();
+    if (unsubSender) unsubSender();
   };
 }
 
@@ -1696,6 +1806,198 @@ export async function deleteSecretNote(noteId: string): Promise<SiteContentPaylo
     await deleteDoc(doc(db, 'secretNotes', safeId));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, `secretNotes/${safeId}`);
+  }
+  return fetchSiteContent(true);
+}
+
+// --- Our Little Heart Gallery (Quest 3 Reward & Control Room Manager) ---
+
+async function ensureHeartGallerySeededFlag(uid: string): Promise<void> {
+  const metaRef = doc(db, 'siteContent', 'heartGallery');
+  try {
+    const snap = await getDoc(metaRef);
+    if (!snap.exists() || !snap.data()?.payload?.seeded) {
+      await setDoc(
+        metaRef,
+        {
+          sectionId: 'heartGallery',
+          payload: { seeded: true },
+          updatedBy: uid,
+          createdAt: snap.exists() ? snap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'siteContent/heartGallery');
+  }
+}
+
+export async function uploadHeartGalleryImage(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<{ url: string; storagePath: string; filename: string }> {
+  const res = await uploadMediaFile(file, 'images', onProgress);
+  return {
+    url: res.url,
+    storagePath: res.storagePath,
+    filename: res.filename,
+  };
+}
+
+export async function createHeartGalleryPhoto(input: {
+  imageUrl: string;
+  storagePath?: string;
+  caption: string;
+  dateLabel?: string;
+  theme: HeartGalleryTheme;
+  order: number;
+}): Promise<SiteContentPayload> {
+  const user = requireVerifiedAdminUser();
+  const validation = validateHeartGalleryPhotoInput(input);
+  if (!validation.ok) {
+    throw new Error(validation.error);
+  }
+
+  const docId = normalizeDocId(`heart-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`);
+  const photoRef = doc(db, 'heartGallery', docId);
+  try {
+    const data: Record<string, unknown> = {
+      id: docId,
+      imageUrl: input.imageUrl.trim().slice(0, 1200),
+      caption: input.caption.trim().slice(0, 180),
+      dateLabel: (input.dateLabel || '').trim().slice(0, 60),
+      theme: sanitizeHeartTheme(input.theme),
+      order: Math.max(1, Math.min(500, Math.floor(input.order || 1))),
+      isPublished: true,
+      ownerUid: user.uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.storagePath && input.storagePath.trim()) {
+      data.storagePath = input.storagePath.trim().slice(0, 400);
+    }
+    await setDoc(photoRef, data);
+    await ensureHeartGallerySeededFlag(user.uid);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `heartGallery/${docId}`);
+  }
+
+  return fetchSiteContent(true);
+}
+
+export async function updateHeartGalleryPhoto(
+  photoId: string,
+  input: {
+    imageUrl: string;
+    storagePath?: string;
+    caption: string;
+    dateLabel?: string;
+    theme: HeartGalleryTheme;
+    order: number;
+    isPublished?: boolean;
+  }
+): Promise<SiteContentPayload> {
+  const user = requireVerifiedAdminUser();
+  const safeId = normalizeDocId(photoId);
+  const validation = validateHeartGalleryPhotoInput(input);
+  if (!validation.ok) {
+    throw new Error(validation.error);
+  }
+
+  const photoRef = doc(db, 'heartGallery', safeId);
+  try {
+    const snap = await getDoc(photoRef);
+    const baseData: Record<string, unknown> = {
+      imageUrl: input.imageUrl.trim().slice(0, 1200),
+      caption: input.caption.trim().slice(0, 180),
+      dateLabel: (input.dateLabel || '').trim().slice(0, 60),
+      theme: sanitizeHeartTheme(input.theme),
+      order: Math.max(1, Math.min(500, Math.floor(input.order || 1))),
+      isPublished: input.isPublished !== false,
+      updatedAt: serverTimestamp(),
+    };
+    if (input.storagePath && input.storagePath.trim()) {
+      baseData.storagePath = input.storagePath.trim().slice(0, 400);
+    }
+    if (snap.exists()) {
+      await updateDoc(photoRef, baseData);
+    } else {
+      await setDoc(photoRef, {
+        ...baseData,
+        id: safeId,
+        ownerUid: user.uid,
+        createdAt: serverTimestamp(),
+      });
+    }
+    await ensureHeartGallerySeededFlag(user.uid);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `heartGallery/${safeId}`);
+  }
+
+  return fetchSiteContent(true);
+}
+
+export async function reorderHeartGalleryPhotos(
+  orderedPhotos: HeartGalleryPhoto[]
+): Promise<SiteContentPayload> {
+  const user = requireVerifiedAdminUser();
+  const normalized = normalizeHeartGalleryOrder(orderedPhotos);
+
+  try {
+    const existingSnap = await getDocs(collection(db, 'heartGallery'));
+    const existingIds = new Set(existingSnap.docs.map((d) => d.id));
+    const batch = writeBatch(db);
+
+    for (const item of normalized) {
+      const safeId = normalizeDocId(item.id);
+      const ref = doc(db, 'heartGallery', safeId);
+      const patch: Record<string, unknown> = {
+        imageUrl: item.imageUrl.trim().slice(0, 1200),
+        caption: item.caption.trim().slice(0, 180),
+        dateLabel: (item.dateLabel || '').trim().slice(0, 60),
+        theme: sanitizeHeartTheme(item.theme),
+        order: item.order,
+        isPublished: item.isPublished !== false,
+        updatedAt: serverTimestamp(),
+      };
+      if (item.storagePath && item.storagePath.trim()) {
+        patch.storagePath = item.storagePath.trim().slice(0, 400);
+      }
+
+      if (existingIds.has(safeId)) {
+        batch.update(ref, patch);
+      } else {
+        batch.set(ref, {
+          ...patch,
+          id: safeId,
+          ownerUid: user.uid,
+          createdAt: serverTimestamp(),
+        });
+      }
+    }
+
+    await batch.commit();
+    await ensureHeartGallerySeededFlag(user.uid);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'heartGallery');
+  }
+
+  return fetchSiteContent(true);
+}
+
+export async function deleteHeartGalleryPhoto(photoId: string): Promise<SiteContentPayload> {
+  const user = requireVerifiedAdminUser();
+  const safeId = normalizeDocId(photoId);
+  try {
+    await ensureHeartGallerySeededFlag(user.uid);
+    const snap = await getDoc(doc(db, 'heartGallery', safeId));
+    if (snap.exists()) {
+      await deleteDoc(doc(db, 'heartGallery', safeId));
+    }
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `heartGallery/${safeId}`);
   }
   return fetchSiteContent(true);
 }

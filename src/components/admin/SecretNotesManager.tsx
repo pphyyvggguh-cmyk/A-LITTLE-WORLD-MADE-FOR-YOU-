@@ -28,6 +28,7 @@ import {
   sortSecretNotes,
   validateSecretNoteInput,
 } from '../../utils/secretNotes';
+import { formatSafeUiError } from '../../utils/safeError';
 import { HiddenEnvelopeModal } from '../story/HiddenEnvelope';
 
 interface SecretNotesManagerProps {
@@ -128,7 +129,7 @@ export function SecretNotesManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menyimpan Secret Note.',
+        text: formatSafeUiError(err, 'Gagal menyimpan Secret Note.', 'admin'),
       });
     } finally {
       setSaving(false);
@@ -149,7 +150,7 @@ export function SecretNotesManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal mengubah status Secret Note.',
+        text: formatSafeUiError(err, 'Gagal mengubah status Secret Note.', 'admin'),
       });
     } finally {
       setBusyId(null);
@@ -175,7 +176,7 @@ export function SecretNotesManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal menghapus Secret Note.',
+        text: formatSafeUiError(err, 'Gagal menghapus Secret Note.', 'admin'),
       });
     } finally {
       setBusyId(null);
@@ -198,7 +199,7 @@ export function SecretNotesManager({
     } catch (err) {
       setStatus({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Gagal memigrasikan Secret Note bawaan.',
+        text: formatSafeUiError(err, 'Gagal memigrasikan Secret Note bawaan.', 'admin'),
       });
     } finally {
       setMigrating(false);

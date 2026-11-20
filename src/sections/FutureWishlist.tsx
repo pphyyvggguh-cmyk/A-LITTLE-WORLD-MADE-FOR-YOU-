@@ -15,6 +15,7 @@ import {
   StorybookButton,
 } from '../components/editorial/StorybookPrimitives';
 import { BotanicalFlowerSVG } from '../components/Flower';
+import { HiddenPolaroidSpot } from '../components/quests/HiddenPolaroidSpot';
 import { DecorationSVG } from '../components/story/ScrapbookDecorations';
 import { WishFormModal } from '../components/wishlist/WishFormModal';
 import {
@@ -40,6 +41,7 @@ import {
   canEditWishlistEntry,
   filterWishlistEntries,
 } from '../utils/wishlist';
+import { formatSafeUiError } from '../utils/safeError';
 
 export function FutureWishlist() {
   const {
@@ -81,7 +83,7 @@ export function FutureWishlist() {
         setLoadingList(false);
       },
       (err) => {
-        setSyncError(err.message);
+        setSyncError(formatSafeUiError(err, 'Gagal memuat daftar wishlist.', 'public'));
         setLoadingList(false);
       }
     );
@@ -122,7 +124,9 @@ export function FutureWishlist() {
       await deleteWishlistEntry(id);
       setConfirmDeleteId(null);
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Gagal menghapus catatan impian.');
+      setSyncError(
+        formatSafeUiError(err, 'Gagal menghapus catatan impian.', 'public')
+      );
     }
   };
 
@@ -146,7 +150,9 @@ export function FutureWishlist() {
         coupleRole
       );
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Gagal menandai tercapai.');
+      setSyncError(
+        formatSafeUiError(err, 'Gagal menandai tercapai.', 'public')
+      );
     }
   };
 
@@ -210,7 +216,7 @@ export function FutureWishlist() {
             <div className="space-y-1 pr-6">
               <p className="font-serif text-base font-semibold text-[#38271F]">
                 {user && !coupleRole
-                  ? `Akun ${user.email} belum terdaftar sebagai penulis jurnal ini`
+                  ? 'Akun Google yang sedang masuk belum terdaftar sebagai penulis jurnal ini'
                   : 'Masuk sebagai Oktaf atau Wulan untuk menulis & melihat catatan privat'}
               </p>
               <p className="text-xs text-[#38271F]/72 leading-relaxed">
@@ -271,8 +277,8 @@ export function FutureWishlist() {
                     onClick={() => setCategoryFilter(cat)}
                     className={`min-h-[40px] py-1.5 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                       active
-                        ? 'text-[#A6533B] border-[#A6533B]'
-                        : 'text-[#38271F]/65 border-transparent hover:text-[#38271F]'
+                        ? 'text-[#552E3D] border-[#A95F70]'
+                        : 'text-[#6E5F63] border-transparent hover:text-[#30272A]'
                     }`}
                   >
                     {label}
@@ -282,7 +288,7 @@ export function FutureWishlist() {
             </div>
 
             {coupleRole && (
-              <p className="font-hand text-lg text-[#455342]">
+              <p className="font-hand text-lg text-[#4E5D49]">
                 Masuk sebagai {coupleRole === 'oktaf' ? 'Oktaf ♡' : 'Wulan ♡'}
               </p>
             )}
@@ -382,9 +388,9 @@ export function FutureWishlist() {
             <button
               type="button"
               onClick={handleRequestWrite}
-              className="min-h-[44px] px-5 py-2.5 rounded-lg bg-[#38271F] text-[#F4EBDD] text-xs font-semibold inline-flex items-center gap-2 hover:bg-[#4e382d] cursor-pointer"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#552E3D] text-[#FFFDFC] text-xs font-semibold inline-flex items-center gap-2 hover:bg-[#3f202c] cursor-pointer"
             >
-              <Plus className="w-4 h-4 text-[#E8BFC5]" />
+              <Plus className="w-4 h-4 text-[#EBC9CB]" />
               <span>{coupleRole ? 'Tulis Impian Pertama' : 'Masuk untuk Menulis'}</span>
             </button>
           </section>
@@ -412,8 +418,8 @@ export function FutureWishlist() {
                   key={entry.id}
                   className={`relative border rounded-lg p-5 sm:p-6 shadow-polaroid transition-shadow hover:shadow-polaroid-lifted flex flex-col justify-between gap-4 ${
                     isCompleted
-                      ? 'journal-lined border-[#455342]/30'
-                      : 'bg-[#FBF6EE] border-[#38271F]/16'
+                      ? 'journal-lined border-[#4E5D49]/30'
+                      : 'bg-[#FFFDFC] border-[#30272A]/14'
                   }`}
                 >
                   {/* Translucent washi tape */}
@@ -581,6 +587,11 @@ export function FutureWishlist() {
             })}
           </section>
         )}
+
+        {/* Subtle desk center Polaroid collectible (Quest 3) */}
+        <div className="pt-2 pb-12 sm:pb-4 flex items-center justify-center">
+          <HiddenPolaroidSpot polaroidId="polaroid-wishlist" />
+        </div>
       </div>
 
       {/* Create / Edit Modal */}

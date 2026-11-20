@@ -2,6 +2,7 @@ import {
   AccessConfig,
   CanonicalWishlistVisibility,
   PRIMARY_ADMIN_EMAIL,
+  PRIMARY_WULAN_EMAIL,
   WishlistCategory,
   WishlistEntry,
   WishlistStatus,
@@ -34,11 +35,8 @@ export function resolveCoupleRole(
     return 'oktaf';
   }
 
-  if (
-    config.wishlistPrivacyMode === 'couple-only' &&
-    normalizeEmail(config.wulanEmail) &&
-    normalized === normalizeEmail(config.wulanEmail)
-  ) {
+  const configuredWulan = normalizeEmail(config.wulanEmail) || PRIMARY_WULAN_EMAIL;
+  if (config.wishlistPrivacyMode === 'couple-only' && normalized === configuredWulan) {
     return 'wulan';
   }
 
@@ -50,7 +48,7 @@ export function buildAllowedEmailsList(
 ): string[] {
   const list = new Set<string>([PRIMARY_ADMIN_EMAIL]);
   const oktaf = normalizeEmail(config.oktafEmail);
-  const wulan = normalizeEmail(config.wulanEmail);
+  const wulan = normalizeEmail(config.wulanEmail) || PRIMARY_WULAN_EMAIL;
   if (oktaf) list.add(oktaf);
   if (wulan) list.add(wulan);
   return Array.from(list).slice(0, 4);

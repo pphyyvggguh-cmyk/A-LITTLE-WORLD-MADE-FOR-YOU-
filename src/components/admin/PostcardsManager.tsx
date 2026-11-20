@@ -31,6 +31,7 @@ import {
 } from '../../utils/adminApi';
 import { classifyPostcardBucket } from '../../utils/postcards';
 import { fetchTrustedServerNowMs, getTrustedNowMs } from '../../utils/serverTime';
+import { formatSafeUiError } from '../../utils/safeError';
 import { PostcardFormModal } from '../postcards/PostcardFormModal';
 
 export function PostcardsManager() {
@@ -58,7 +59,8 @@ export function PostcardsManager() {
       user.email,
       'oktaf',
       (items) => setEnvelopes(items),
-      (err) => setListError(err.message)
+      (err) =>
+        setListError(formatSafeUiError(err, 'Gagal memuat kartu pos.', 'admin'))
     );
     return () => unsub();
   }, [user?.email]);
@@ -97,7 +99,9 @@ export function PostcardsManager() {
     try {
       await reorderPostcards(next);
     } catch (err) {
-      setListError(err instanceof Error ? err.message : 'Gagal mengubah urutan kartu pos.');
+      setListError(
+        formatSafeUiError(err, 'Gagal mengubah urutan kartu pos.', 'admin')
+      );
     }
   };
 
@@ -107,7 +111,9 @@ export function PostcardsManager() {
       await deletePostcard(id);
       setConfirmDeleteId(null);
     } catch (err) {
-      setListError(err instanceof Error ? err.message : 'Gagal menghapus kartu pos.');
+      setListError(
+        formatSafeUiError(err, 'Gagal menghapus kartu pos.', 'admin')
+      );
     }
   };
 

@@ -9,6 +9,7 @@ import {
 } from '../components/editorial/StorybookPrimitives';
 import { VoiceCard } from '../components/voices/VoiceCard';
 import { VoiceFlowerSVG } from '../components/voices/VoiceFlowerSVG';
+import { HiddenPolaroidSpot } from '../components/quests/HiddenPolaroidSpot';
 import { useContentStore } from '../store/useContentStore';
 import { useStore } from '../store/useStore';
 import { normalizeVoicesOrder } from '../utils/adminContent';
@@ -35,7 +36,7 @@ export function VoicesOfLove() {
         title="Voices of Love ♡"
         subtitle="Ucapan dan doa dari sahabat-sahabat terdekat yang ikut merayakan harimu."
         ornament={
-          <div className="postage-stamp px-3 py-1.5 text-[10px] tracking-widest uppercase text-[#455342] font-semibold">
+          <div className="postage-stamp px-3 py-1.5 text-[10px] tracking-widest uppercase text-[#4E5D49] font-semibold">
             TAMAN SUARA · {voices.length}
           </div>
         }
@@ -56,7 +57,7 @@ export function VoicesOfLove() {
             <h2 className="editorial-subheading">
               Belum Ada Pesan Suara Sahabat
             </h2>
-            <p className="text-sm text-[#38271F]/74 leading-relaxed">
+            <p className="text-sm text-[#6E5F63] leading-relaxed">
               Taman bunga suara ini masih menunggu rekaman ucapan pertama. Nanti kalau suara-suara dari sahabatmu sudah masuk, tiap bunga di sini akan siap kamu dengarkan satu per satu.
             </p>
             <BotanicalDivider className="my-4" />
@@ -66,7 +67,7 @@ export function VoicesOfLove() {
                 variant="primary"
                 onClick={() => navigateTo('hub')}
               >
-                <Flower2 className="w-4 h-4 text-[#E8BFC5]" />
+                <Flower2 className="w-4 h-4 text-[#EBC9CB]" />
                 <span>Kembali ke Beranda</span>
               </StorybookButton>
             </div>
@@ -91,6 +92,11 @@ export function VoicesOfLove() {
           ))}
         </section>
       )}
+
+      {/* Subtle garden center Polaroid collectible (Quest 3) */}
+      <div className="mt-8 pb-12 sm:pb-4 flex items-center justify-center">
+        <HiddenPolaroidSpot polaroidId="polaroid-voices" />
+      </div>
     </EditorialSectionShell>
   );
 }

@@ -20,8 +20,10 @@ import { DEFAULT_VIDEO_CONFIG } from '../data/video';
 import { DEFAULT_VINYL_CONFIG, DEFAULT_VINYL_PLAYLIST } from '../data/vinyl';
 import { DEFAULT_ACCESS_CONFIG } from '../data/wishlist';
 import { DEFAULT_SECRET_NOTES } from '../data/hiddenMessages';
+import { DEFAULT_HEART_GALLERY_PHOTOS } from '../data/quests';
 import type { SiteContentPayload } from './adminContent';
 import { normalizeVoicesOrder, validateStoryBookPages } from './adminContent';
+import { normalizeHeartGalleryOrder } from './quests';
 import { normalizeSecretNote } from './secretNotes';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl, normalizeVinylOrder } from './vinyl';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -30,6 +32,7 @@ export interface MigrationReport {
   seededSections: string[];
   seededVinylTracks: number;
   seededSecretNotes: number;
+  seededHeartGalleryPhotos: number;
   bootstrappedAdmin: boolean;
   bootstrappedConfig: boolean;
 }
@@ -43,6 +46,7 @@ export async function ensureFirebaseBootstrapped(user: User): Promise<MigrationR
     seededSections: [],
     seededVinylTracks: 0,
     seededSecretNotes: 0,
+    seededHeartGalleryPhotos: 0,
     bootstrappedAdmin: false,
     bootstrappedConfig: false,
   };
@@ -69,7 +73,7 @@ export async function ensureFirebaseBootstrapped(user: User): Promise<MigrationR
     handleFirestoreError(err, OperationType.WRITE, `admins/${user.uid}`);
   }
 
-  // 2. Ensure /config/access exists
+  // 2. Ensure /config/access exists (and backfill empty wulanEmail if previously unconfigured)
   const configRef = doc(db, 'config', 'access');
   try {
     const configSnap = await getDoc(configRef);
@@ -85,6 +89,20 @@ export async function ensureFirebaseBootstrapped(user: User): Promise<MigrationR
         updatedAt: serverTimestamp(),
       });
       report.bootstrappedConfig = true;
+    } else {
+      const existingData = configSnap.data() as { wulanEmail?: string };
+      if (!existingData.wulanEmail && DEFAULT_ACCESS_CONFIG.wulanEmail) {
+        await setDoc(
+          configRef,
+          {
+            wulanEmail: DEFAULT_ACCESS_CONFIG.wulanEmail,
+            updatedBy: user.uid,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        report.bootstrappedConfig = true;
+      }
     }
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'config/access');
@@ -207,6 +225,46 @@ export async function ensureFirebaseBootstrapped(user: User): Promise<MigrationR
     }
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'secretNotes');
+  }
+
+  // 6. Seed default Heart Gallery photos ONLY when siteContent/heartGallery & collection are empty
+  try {
+    const hgMetaRef = doc(db, 'siteContent', 'heartGallery');
+    const hgMetaSnap = await getDoc(hgMetaRef);
+    const alreadySeededHg = Boolean(hgMetaSnap.exists() && hgMetaSnap.data()?.payload?.seeded);
+    const existingHgSnap = await getDocs(collection(db, 'heartGallery'));
+
+    if (!alreadySeededHg && existingHgSnap.empty) {
+      const batch = writeBatch(db);
+      for (const item of normalizeHeartGalleryOrder(DEFAULT_HEART_GALLERY_PHOTOS)) {
+        batch.set(doc(db, 'heartGallery', item.id), {
+          id: item.id,
+          imageUrl: item.imageUrl,
+          caption: item.caption,
+          dateLabel: item.dateLabel || '',
+          theme: item.theme,
+          order: item.order,
+          isPublished: true,
+          ownerUid: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        report.seededHeartGalleryPhotos += 1;
+      }
+      await batch.commit();
+    }
+
+    if (!alreadySeededHg) {
+      await setDoc(hgMetaRef, {
+        sectionId: 'heartGallery',
+        payload: { seeded: true },
+        updatedBy: user.uid,
+        createdAt: hgMetaSnap.exists() ? hgMetaSnap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'heartGallery');
   }
 
   return report;

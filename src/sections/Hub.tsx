@@ -13,13 +13,24 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
+import heroKeepsakeImg from '../assets/images/hero_scrapbook_keepsake_1795173831172.jpg';
+import featuredPicnicImg from '../assets/images/featured_golden_picnic_1795173832261.jpg';
+import featuredLanternsImg from '../assets/images/featured_twilight_lanterns_1795173831660.jpg';
 import { HiddenFlowerSpot } from '../components/Flower';
+import { BotanicalDivider } from '../components/editorial/StorybookPrimitives';
 import { BookCornerOrnamentSVG } from '../components/storybook/StorybookIllustrations';
 import { FLOWERS_DATA } from '../data/flowers';
 import { HUB_CARD_REACTIONS } from '../data/miniOktaf';
+import { useFirebaseAuth } from '../lib/FirebaseProvider';
 import { useContentStore } from '../store/useContentStore';
 import { AppSection, useStore } from '../store/useStore';
-import { EASE_OUT_EXPO } from '../utils/animation';
+import {
+  EMOTIONAL_REVEAL,
+  MOTION_EMOTIONAL,
+  MOTION_INTERFACE,
+  MOTION_MICRO,
+} from '../utils/animation';
+import { TOTAL_POLAROIDS, TOTAL_QUEST2_QUESTIONS } from '../utils/quests';
 
 export type HubChapterId = Exclude<AppSection, 'password' | 'welcome' | 'hub' | 'reward'>;
 
@@ -31,83 +42,139 @@ interface HubChapterEntry {
   handNote: string;
   accent: string;
   icon: typeof BookHeart;
+  featuredSpan?: boolean;
 }
 
-const BOOK_TOC_CHAPTERS: HubChapterEntry[] = [
+const EXPLORE_CHAPTERS: HubChapterEntry[] = [
   {
     id: 'story',
     number: '01',
     title: 'Our Story',
-    subtitle: '17 Halaman Scrapbook Kenangan',
-    handNote: 'Polaroid, selipan catatan, dan amplop kecil',
-    accent: '#A6533B',
+    subtitle: '17 halaman scrapbook kenangan yang bisa dibalik satu per satu.',
+    handNote: 'Polaroid, selipan catatan, dan musik latar',
+    accent: '#A95F70',
     icon: BookHeart,
+    featuredSpan: true,
   },
   {
     id: 'world',
     number: '02',
     title: 'Our World',
-    subtitle: 'Bola Dunia 3D & 20 Kota',
-    handNote: 'Putar globe dan terbangkan rute impian',
-    accent: '#455342',
+    subtitle: 'Bola dunia 3D interaktif dengan 20 kota impian dan rute pesawat.',
+    handNote: 'Putar globe dan lihat kartu destinasi',
+    accent: '#4E5D49',
     icon: Globe2,
   },
   {
     id: 'letters',
     number: '03',
     title: 'Birthday Letters',
-    subtitle: 'Surat & Doa Pribadi',
-    handNote: 'Amplop bersegel lilin buat dibaca santai',
-    accent: '#743D4A',
+    subtitle: 'Amplop bersegel lilin berisi surat panjang dan doa pribadi.',
+    handNote: 'Buka pelan-pelan kapan pun kamu mau',
+    accent: '#552E3D',
     icon: Mail,
   },
   {
     id: 'video',
     number: '04',
     title: 'Birthday Video',
-    subtitle: 'Ruang Putar Khusus · Tiket 19.02',
-    handNote: 'Video ucapan spesial untuk ulang tahunmu',
-    accent: '#C4A574',
+    subtitle: 'Ruang putar khusus dengan tiket kenangan untuk hari ulang tahunmu.',
+    handNote: 'Video ucapan spesial buat Wulan',
+    accent: '#C9A879',
     icon: Film,
   },
   {
     id: 'voices',
     number: '05',
     title: 'Voices of Love ♡',
-    subtitle: 'Taman Suara Sahabat',
-    handNote: 'Dengarkan doa hangat dari teman terdekatmu',
-    accent: '#743D4A',
+    subtitle: 'Taman bunga suara berisi doa hangat dari sahabat-sahabatmu.',
+    handNote: 'Sentuh tiap bunga untuk memutar suaranya',
+    accent: '#A95F70',
     icon: Flower2,
   },
   {
     id: 'wishlist',
     number: '06',
     title: 'Our Future Wishlist ♡',
-    subtitle: 'Jurnal Impian Masa Depan',
-    handNote: 'Rencana kecil yang pengen dijalanin bareng',
-    accent: '#455342',
+    subtitle: 'Jurnal impian kecil, tempat yang ingin dituju, dan rencana bareng.',
+    handNote: 'Tulis dan rayakan satu per satu',
+    accent: '#4E5D49',
     icon: CalendarHeart,
   },
   {
     id: 'postcards',
     number: '07',
     title: 'Postcards From The Future ♡',
-    subtitle: 'Surat Tersegel Waktu',
-    handNote: 'Kartu pos yang menunggu hari bukanya',
-    accent: '#A6533B',
+    subtitle: 'Kartu pos tersegel waktu yang menunggu hari bukanya tiba.',
+    handNote: 'Hadiah kecil untuk dirimu di masa depan',
+    accent: '#A95F70',
     icon: Send,
+  },
+  {
+    id: 'jar-of-thoughts',
+    number: '08',
+    title: 'A Jar Full of Thoughts ♡',
+    subtitle: 'Toples kaca berisi titipan surat lembut—satu surat setiap 24 jam.',
+    handNote: 'Teman harian penuh doa baik',
+    accent: '#552E3D',
+    icon: Sparkles,
+  },
+];
+
+interface FeaturedMemoryItem {
+  target: HubChapterId;
+  image: string;
+  alt: string;
+  kicker: string;
+  title: string;
+  caption: string;
+  tiltClass: string;
+}
+
+const FEATURED_MEMORIES: FeaturedMemoryItem[] = [
+  {
+    target: 'story',
+    image: heroKeepsakeImg,
+    alt: 'Jurnal scrapbook terbuka dengan bunga peoni kering dan amplop kenangan di bawah cahaya pagi',
+    kicker: 'Halaman Kenangan',
+    title: 'Every quiet chapter in our scrapbook',
+    caption: 'Catatan tulisan tangan, foto Polaroid, dan momen kecil yang selalu ingin disimpan.',
+    tiltClass: '-rotate-1',
+  },
+  {
+    target: 'world',
+    image: featuredLanternsImg,
+    alt: 'Meja kafe senja menghadap lampu kota dengan globe miniatur dan kotak hadiah berpitakan marun',
+    kicker: 'Peta Impian Kita',
+    title: 'Twenty cities waiting on our little globe',
+    caption: 'Dari Bandung sampai sudut kota yang ingin kita datangi pelan-pelan berdua.',
+    tiltClass: 'rotate-1',
+  },
+  {
+    target: 'letters',
+    image: featuredPicnicImg,
+    alt: 'Vas kaca kuning keemasan berisi bunga liar bersama surat berikat pita krem dan kamera film vintage',
+    kicker: 'Surat & Ucapan',
+    title: 'Letters sealed with warmth and wishes',
+    caption: 'Kata-kata yang sengaja dirangkai untuk dibaca ulang di hari baik maupun lelah.',
+    tiltClass: '-rotate-1',
   },
 ];
 
 export function Hub() {
+  const { isAdmin } = useFirebaseAuth();
   const navigateTo = useStore((s) => s.navigateTo);
   const setOktafDialogue = useStore((s) => s.setOktafDialogue);
   const collectedFlowers = useStore((s) => s.collectedFlowers);
+  const collectedPolaroids = useStore((s) => s.collectedPolaroids);
   const questDiscovered = useStore((s) => s.questDiscovered);
+  const quest2Step = useStore((s) => s.quest2Step);
+  const quest2Completed = useStore((s) => s.quest2Completed);
   const rewardClaimed = useStore((s) => s.rewardClaimed);
   const visitedSections = useStore((s) => s.visitedSections);
   const setQuestModalOpen = useStore((s) => s.setQuestModalOpen);
   const replayBookIntro = useStore((s) => s.replayBookIntro);
+  const lockExperience = useStore((s) => s.lockExperience);
   const hubCardReactions = useContentStore((s) => s.miniOktaf.hubCardReactions);
 
   const isRewardUnlocked =
@@ -123,266 +190,525 @@ export function Hub() {
   return (
     <main
       data-testid="hub-storybook-home"
-      className="book-desk-surface min-h-full w-full flex flex-col justify-center px-3 sm:px-6 lg:px-10 pt-4 sm:pt-6 pb-28 sm:pb-20"
+      className="paper-canvas min-h-full w-full px-4 sm:px-8 pt-6 sm:pt-10 pb-36 md:pb-24 overflow-x-hidden"
     >
-      <motion.div
-        initial={{ opacity: 0, y: 12, scale: 0.99 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.42, ease: EASE_OUT_EXPO }}
-        className="w-full max-w-[1100px] mx-auto"
-      >
-        {/* Open Hardcover Book Folio Container */}
-        <div className="book-open-binding relative rounded-2xl p-1.5 sm:p-3 md:p-4">
-          {/* Silk Ribbon Bookmark */}
-          <span
-            aria-hidden="true"
-            className="hidden sm:block pointer-events-none absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 w-3 h-5 bg-gradient-to-b from-[#A6533B] to-[#743D4A] shadow-sm [clip-path:polygon(0_0,100%_0,100%_100%,50%_72%,0_100%)]"
-          />
+      <div className="max-w-6xl mx-auto space-y-14 sm:space-y-20">
+        {/* SECTION 1: HYBRID EDITORIAL + SCRAPBOOK HERO */}
+        <section
+          aria-label="Pembukaan Dunia Kecil Wulan"
+          className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center pt-1 sm:pt-4"
+        >
+          {/* Left Asymmetric Editorial Copy */}
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={MOTION_EMOTIONAL}
+            className="lg:col-span-6 space-y-6"
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="editorial-kicker">
+                19 Februari · Untuk Wulan
+              </span>
+              <span aria-hidden="true" className="text-[#C9A879]">
+                ·
+              </span>
+              <span className="font-hand text-xl text-[#4E5D49]">
+                A Little World Made For You ♡
+              </span>
+            </div>
 
-          {/* Stitched Side Paper Stack Edges */}
-          <div
-            aria-hidden="true"
-            className="hidden sm:block pointer-events-none absolute top-3.5 bottom-3.5 left-1.5 w-2 rounded-l-md book-paper-stack-left border-l border-[#38271F]/25"
-          />
-          <div
-            aria-hidden="true"
-            className="hidden sm:block pointer-events-none absolute top-3.5 bottom-3.5 right-1.5 w-2 rounded-r-md book-paper-stack-right border-r border-[#38271F]/25"
-          />
+            <div className="space-y-4">
+              <h1 className="font-serif text-[clamp(2.35rem,5.2vw,4rem)] font-semibold tracking-tight text-[#30272A] leading-[1.06] text-balance">
+                Little moments,{' '}
+                <span className="italic font-normal text-[#552E3D]">
+                  big memories.
+                </span>
+              </h1>
+              <p className="editorial-prose text-base sm:text-lg text-[#6E5F63]">
+                A tiny universe filled with stories, photographs, and surprises.
+              </p>
+            </div>
 
-          {/* Two Facing Storybook Pages */}
-          <div className="relative bg-[#EDE1CF] rounded-xl p-0.5 sm:p-1 shadow-inner overflow-hidden">
-            <div className="relative grid grid-cols-1 lg:grid-cols-2">
-              {/* Central Spine Shadow on Desktop */}
+            {/* Dual Editorial Actions */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <motion.button
+                type="button"
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.985 }}
+                transition={MOTION_MICRO}
+                onClick={() => navigateTo('world')}
+                onMouseEnter={() => handleCardHover('world')}
+                className="min-h-[48px] px-6 py-3 rounded-xl bg-[#552E3D] text-[#FFFDFC] text-sm font-medium hover:bg-[#3f202c] transition-colors inline-flex items-center gap-2 shadow-polaroid cursor-pointer"
+              >
+                <span>Explore Our World</span>
+                <ArrowRight className="w-4 h-4 text-[#EBC9CB]" />
+              </motion.button>
+
+              <motion.button
+                type="button"
+                data-testid="hub-start-story-btn"
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.985 }}
+                transition={MOTION_MICRO}
+                onClick={() => navigateTo('story')}
+                onMouseEnter={() => handleCardHover('story')}
+                className="min-h-[48px] px-5 py-3 rounded-xl bg-[#FFFDFC] text-[#30272A] border border-[#30272A]/16 text-sm font-medium hover:bg-[#EFE5D8]/70 transition-colors inline-flex items-center gap-2 cursor-pointer"
+              >
+                <BookHeart className="w-4 h-4 text-[#A95F70]" />
+                <span>Read Our Story</span>
+              </motion.button>
+            </div>
+
+            {/* Clean Keepsake Milestones Strip (Zero pills, subtle editorial rule) */}
+            <div className="pt-4 border-t border-[#30272A]/10 grid grid-cols-2 gap-6 max-w-md">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-[#A95F70]">
+                  Ulang Tahunmu
+                </p>
+                <p className="mt-0.5 font-serif text-lg font-semibold text-[#30272A]">
+                  19 Februari
+                </p>
+                <p className="text-xs text-[#6E5F63]">Hari spesialmu, Wulan</p>
+              </div>
+
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4E5D49]">
+                  Hari Jadian Kita
+                </p>
+                <p className="mt-0.5 font-serif text-lg font-semibold text-[#30272A]">
+                  2 Mei 2026
+                </p>
+                <p className="text-xs text-[#6E5F63]">Awal babak baru kita</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right Asymmetric 3-Photo Editorial Scrapbook Collage */}
+          <motion.div
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...MOTION_EMOTIONAL, delay: 0.12 }}
+            className="lg:col-span-6 relative pb-6 sm:pb-8"
+          >
+            <div className="relative max-w-lg mx-auto">
+              {/* Soft blush ambient backdrop glow behind collage */}
               <div
                 aria-hidden="true"
-                className="hidden lg:block book-spine-shadow pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-8 z-20"
+                className="absolute -inset-6 rounded-[2rem] bg-gradient-to-br from-[#EBC9CB]/35 via-[#E8BBA5]/20 to-[#A8B29B]/20 pointer-events-none"
               />
 
-              {/* LEFT FOLIO — Title Page, Dedication, Birth & Anniversary Keepsakes, Primary CTA */}
-              <section
-                aria-label="Halaman Pembuka Buku"
-                className="book-page-left relative bg-[#FBF6EE] rounded-t-lg lg:rounded-t-none lg:rounded-l-lg p-5 sm:p-7 lg:p-8 border-b lg:border-b-0 lg:border-r border-[#38271F]/12 flex flex-col justify-between gap-5"
-              >
-                <BookCornerOrnamentSVG className="pointer-events-none absolute top-3 left-3 w-5 h-5 opacity-45" />
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="editorial-kicker">
-                      Bab 00 · 19 Februari · Untuk Wulan
-                    </span>
-                    <HiddenFlowerSpot flowerId="flower-sakura" />
-                  </div>
-
-                  <div className="space-y-2.5 pt-1">
-                    <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-tight text-[#38271F] leading-[1.14]">
-                      A Little World Made For You ♡
-                    </h1>
-                    <p className="text-sm sm:text-[15px] text-[#38271F]/78 leading-relaxed max-w-md">
-                      Buku kecil ini disusun bab demi bab—berisi foto, catatan perjalanan, surat pribadi, suara sahabat, dan rencana kita ke depan. Buka pelan-pelan atau geser ke kanan untuk membalik bab.
-                    </p>
-                  </div>
-
-                  {/* Distinct Birthday & Relationship Anniversary Keepsakes */}
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <div className="rounded-lg border border-[#38271F]/12 bg-[#F4EBDD]/75 px-3 py-2.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#A6533B]">
-                        Ulang Tahunmu
-                      </p>
-                      <p className="mt-0.5 font-serif text-base font-semibold text-[#38271F]">
-                        19 Februari
-                      </p>
-                      <p className="text-[11px] text-[#38271F]/62">
-                        Hari spesialmu, Wulan ♡
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg border border-[#38271F]/12 bg-[#F4EBDD]/75 px-3 py-2.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#455342]">
-                        Hari Jadian Kita
-                      </p>
-                      <p className="mt-0.5 font-serif text-base font-semibold text-[#38271F]">
-                        2 Mei 2026
-                      </p>
-                      <p className="text-[11px] text-[#38271F]/62">
-                        Awal babak baru kita
-                      </p>
-                    </div>
-                  </div>
+              {/* Main Anchor Film Frame */}
+              <figure className="relative z-10 w-[82%] sm:w-[78%] editorial-photo-frame -rotate-1 transition-transform duration-300 hover:rotate-0">
+                <span
+                  aria-hidden="true"
+                  className="washi-tape absolute -top-3 left-8 w-20 h-5 -rotate-3 z-20"
+                />
+                <div className="aspect-[3/4] overflow-hidden rounded-[4px] bg-[#EFE5D8]">
+                  <img
+                    src={heroKeepsakeImg}
+                    alt="Jurnal scrapbook kenangan Wulan dan Oktaf dengan bunga kering dan amplop surat"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
+                <figcaption className="mt-2.5 flex items-center justify-between gap-2 px-1">
+                  <span className="font-hand text-lg text-[#552E3D]">
+                    Our little keepsakes ♡
+                  </span>
+                  <span className="text-[11px] uppercase tracking-widest text-[#6E5F63]">
+                    Vol. 01
+                  </span>
+                </figcaption>
+              </figure>
 
-                {/* Left Folio Bottom: Primary Action + Secret Quest Whisper */}
-                <div className="space-y-3 pt-2 border-t border-[#38271F]/10">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      data-testid="hub-start-story-btn"
-                      onClick={() => navigateTo('story')}
-                      onMouseEnter={() => handleCardHover('story')}
-                      className="min-h-[46px] px-5 py-2.5 rounded-lg bg-[#38271F] text-[#F4EBDD] text-sm font-medium hover:bg-[#4e382d] active:scale-[0.99] transition-all inline-flex items-center gap-2 shadow-polaroid cursor-pointer"
-                    >
-                      <span>Buka Bab 01: Our Story</span>
-                      <ArrowRight className="w-4 h-4 text-[#E8BFC5]" />
-                    </button>
-
-                    {questDiscovered && (
-                      <button
-                        type="button"
-                        onClick={() => setQuestModalOpen(true)}
-                        className="min-h-[42px] px-3 py-1.5 rounded-lg border border-[#455342]/25 bg-[#F4EBDD]/80 text-xs font-medium text-[#455342] hover:bg-[#EAE0CF] inline-flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-[#A6533B]" />
-                        <span className="tabular-nums">
-                          {collectedFlowers.length}/{FLOWERS_DATA.length} Bunga
-                        </span>
-                      </button>
-                    )}
-                  </div>
-
-                  {!questDiscovered && (
-                    <p className="font-hand text-base sm:text-lg text-[#743D4A]/85 leading-snug">
-                      Bisikan jurnal: ketuk Mini Oktaf dua kali kalau penasaran sama 7 bunga tersembunyi...
-                    </p>
-                  )}
+              {/* Secondary Top-Right Polaroid Accent */}
+              <figure className="hidden sm:block absolute -top-4 right-0 z-20 w-[44%] editorial-photo-frame rotate-3 shadow-polaroid-lifted transition-transform duration-300 hover:rotate-1">
+                <span
+                  aria-hidden="true"
+                  className="washi-tape-gold absolute -top-2.5 right-6 w-14 h-4 rotate-3 z-20"
+                />
+                <div className="aspect-[4/3] overflow-hidden rounded-[4px] bg-[#EFE5D8]">
+                  <img
+                    src={featuredPicnicImg}
+                    alt="Vas bunga keemasan dan kamera film vintage"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              </section>
+                <figcaption className="mt-1.5 font-hand text-base text-[#30272A]/85 text-center">
+                  Golden afternoon
+                </figcaption>
+              </figure>
 
-              {/* RIGHT FOLIO — Clean Interactive Table of Contents Index */}
-              <section
-                aria-label="Daftar Bab Buku Cerita"
-                className="book-page-right relative bg-[#FBF6EE] rounded-b-lg lg:rounded-b-none lg:rounded-r-lg p-5 sm:p-7 lg:p-8 flex flex-col justify-between gap-4"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-baseline justify-between gap-2 pb-2.5 border-b border-[#38271F]/12">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-widest text-[#743D4A]">
-                        Daftar Isi · Chapters
-                      </p>
-                      <h2 className="font-serif text-xl sm:text-2xl font-semibold text-[#38271F]">
-                        Pilih Bab Cerita
-                      </h2>
-                    </div>
-                    <span className="font-hand text-base text-[#455342] tabular-nums shrink-0">
-                      {visitedSections.length}/{isRewardUnlocked ? 9 : 8} dibuka
-                    </span>
-                  </div>
-
-                  <nav aria-label="Daftar Bab Dunia Kecil" className="divide-y divide-[#38271F]/8">
-                    {BOOK_TOC_CHAPTERS.map((ch) => {
-                      const Icon = ch.icon;
-                      const isVisited = visitedSections.includes(ch.id);
-                      return (
-                        <button
-                          key={ch.id}
-                          type="button"
-                          onClick={() => navigateTo(ch.id)}
-                          onMouseEnter={() => handleCardHover(ch.id)}
-                          className="group w-full py-2.5 px-2.5 -mx-2 rounded-lg flex items-center justify-between gap-3 text-left hover:bg-[#EAE0CF]/70 transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span
-                              className="w-7 h-7 rounded-md bg-[#F4EBDD] border border-[#38271F]/12 flex items-center justify-center shrink-0"
-                              style={{ color: ch.accent }}
-                            >
-                              <Icon className="w-3.5 h-3.5" />
-                            </span>
-                            <div className="min-w-0">
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-[11px] font-semibold tabular-nums text-[#743D4A]/80">
-                                  {ch.number}
-                                </span>
-                                <span className="font-serif text-sm sm:text-base font-semibold text-[#38271F] group-hover:text-[#A6533B] transition-colors truncate">
-                                  {ch.title}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-[#38271F]/62 truncate">
-                                {ch.subtitle} — <span className="italic">{ch.handNote}</span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            {isVisited && (
-                              <span
-                                aria-label="Sudah dibuka"
-                                className="w-1.5 h-1.5 rounded-full bg-[#455342]"
-                              />
-                            )}
-                            <ArrowRight className="w-4 h-4 text-[#38271F]/40 group-hover:text-[#A6533B] group-hover:translate-x-0.5 transition-all" />
-                          </div>
-                        </button>
-                      );
-                    })}
-
-                    {isRewardUnlocked && (
-                      <button
-                        type="button"
-                        onClick={() => navigateTo('reward')}
-                        className="group w-full py-2.5 px-2.5 -mx-2 rounded-lg flex items-center justify-between gap-3 text-left bg-[#E8BFC5]/22 hover:bg-[#E8BFC5]/35 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-7 h-7 rounded-md bg-[#FBF6EE] border border-[#743D4A]/20 flex items-center justify-center shrink-0 text-[#743D4A]">
-                            <Heart className="w-3.5 h-3.5 fill-[#E8BFC5]" />
-                          </span>
-                          <div className="min-w-0">
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-[11px] font-semibold tabular-nums text-[#743D4A]">
-                                08
-                              </span>
-                              <span className="font-serif text-sm sm:text-base font-semibold text-[#38271F] truncate">
-                                Secret Meadow
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-[#743D4A] truncate">
-                              Hadiah Taman 7 Bunga sudah terbuka ♡
-                            </p>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-[#743D4A] group-hover:translate-x-0.5 transition-transform" />
-                      </button>
-                    )}
-                  </nav>
+              {/* Secondary Bottom-Right Polaroid Accent */}
+              <figure className="absolute -bottom-3 right-0 sm:right-2 z-20 w-[48%] sm:w-[46%] editorial-photo-frame -rotate-2 shadow-polaroid-lifted transition-transform duration-300 hover:rotate-0">
+                <span
+                  aria-hidden="true"
+                  className="washi-tape-sage absolute -top-2.5 left-6 w-14 h-4 -rotate-2 z-20"
+                />
+                <div className="aspect-[4/3] overflow-hidden rounded-[4px] bg-[#EFE5D8]">
+                  <img
+                    src={featuredLanternsImg}
+                    alt="Meja kafe senja bersama globe kecil dan kotak hadiah"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
+                <figcaption className="mt-1.5 font-hand text-base text-[#552E3D] text-center">
+                  Cities we dream of
+                </figcaption>
+              </figure>
+            </div>
+          </motion.div>
+        </section>
 
-                {/* Right Folio Bottom Margin */}
-                <div className="pt-2.5 border-t border-[#38271F]/10 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[11px] text-[#38271F]/58">
-                    Geser kiri/kanan atau gunakan panah untuk membalik bab.
-                  </p>
+        {/* SECTION 2: PERSONAL WELCOME MESSAGE + HIDDEN FLOWER #1 */}
+        <motion.section
+          {...EMOTIONAL_REVEAL}
+          aria-label="Catatan Pembuka untuk Wulan"
+          className="paper-sheet relative p-6 sm:p-10 overflow-hidden"
+        >
+          <span
+            aria-hidden="true"
+            className="washi-tape-gold absolute -top-2.5 left-10 w-20 h-4 -rotate-2"
+          />
+          <BookCornerOrnamentSVG className="pointer-events-none hidden sm:block absolute bottom-3 right-3 w-5 h-5 rotate-180 opacity-40" />
 
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <button
-                      type="button"
-                      data-testid="replay-book-intro-btn"
-                      onClick={replayBookIntro}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[#38271F]/55 hover:text-[#A6533B] transition-colors min-h-[36px] px-1.5 cursor-pointer"
-                      aria-label="Putar ulang animasi pembukaan buku"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Putar Intro</span>
-                    </button>
-                    <span aria-hidden="true" className="text-[#38271F]/25 text-xs">
-                      ·
-                    </span>
-                    <a
-                      href="/admin"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        window.history.pushState(null, '', '/admin');
-                        window.dispatchEvent(new PopStateEvent('popstate'));
-                      }}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#38271F]/50 hover:text-[#743D4A] transition-colors shrink-0 min-h-[36px] px-1.5"
-                      aria-label="Masuk ke Control Room Admin"
-                    >
-                      <Lock className="w-3 h-3" />
-                      <span>Control Room</span>
-                    </a>
-                  </div>
-                </div>
-              </section>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            <div className="md:col-span-8 space-y-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="editorial-kicker">Catatan Hangat</span>
+                <span aria-hidden="true" className="text-[#C9A879]">
+                  ·
+                </span>
+                <span className="text-xs text-[#4E5D49] font-medium tabular-nums">
+                  {visitedSections.length}/{isRewardUnlocked ? 10 : 9} ruang sudah dibuka
+                </span>
+              </div>
+
+              <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#30272A] leading-snug">
+                Selamat datang kembali di dunia kecil kita, Wulan ♡
+              </h2>
+              <p className="editorial-prose">
+                Semua yang ada di sini disusun pelan-pelan buat kamu—dari lembar kenangan, bola dunia impian, surat pribadi, suara sahabat, sampai kejutan-kejutan kecil yang nunggu kamu temukan sendiri.
+              </p>
+            </div>
+
+            <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-3 pt-2 md:pt-0">
+              <div className="flex items-center gap-3">
+                <span className="font-hand text-lg text-[#552E3D]">
+                  Ada bunga kecil terselip di sini:
+                </span>
+                <HiddenFlowerSpot flowerId="flower-sakura" />
+              </div>
+
+              {questDiscovered && (
+                <button
+                  type="button"
+                  onClick={() => setQuestModalOpen(true)}
+                  className="min-h-[40px] px-3.5 py-1.5 rounded-xl bg-[#F8F1E8] border border-[#4E5D49]/25 text-xs font-medium text-[#4E5D49] hover:bg-[#EFE5D8] inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#A95F70]" />
+                  <span className="tabular-nums">
+                    Misi Bunga: {collectedFlowers.length}/{FLOWERS_DATA.length}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.section>
+
+        {/* SECTION 3: EXPLORE OUR LITTLE WORLD (CURATED CHAPTERS DIRECTORY) */}
+        <section aria-label="Jelajahi Semua Bagian Dunia Kecil" className="space-y-7">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-[#30272A]/10 pb-4">
+            <div className="space-y-1">
+              <p className="editorial-kicker">Explore Our Little World</p>
+              <h2 className="editorial-subheading">
+                Semua cerita & sudut kecil yang bisa kamu buka
+              </h2>
+            </div>
+            <p className="font-hand text-xl text-[#552E3D]">
+              Pilih mana saja yang mau kamu kunjungi dulu ♡
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {EXPLORE_CHAPTERS.map((ch, idx) => {
+              const Icon = ch.icon;
+              const isVisited = visitedSections.includes(ch.id);
+
+              return (
+                <motion.button
+                  key={ch.id}
+                  type="button"
+                  initial={{ opacity: 0, y: 14 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.15 }}
+                  transition={{ ...MOTION_INTERFACE, delay: Math.min(idx * 0.04, 0.24) }}
+                  whileHover={{ y: -4 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => navigateTo(ch.id)}
+                  onMouseEnter={() => handleCardHover(ch.id)}
+                  onFocus={() => handleCardHover(ch.id)}
+                  className={`group paper-sheet text-left p-5 sm:p-6 flex flex-col justify-between gap-4 hover:shadow-polaroid-lifted transition-shadow cursor-pointer ${
+                    ch.featuredSpan ? 'sm:col-span-2 lg:col-span-2 bg-[#FFFDFC]' : ''
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="w-9 h-9 rounded-xl bg-[#F8F1E8] border border-[#30272A]/10 flex items-center justify-center shrink-0"
+                          style={{ color: ch.accent }}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </span>
+                        <span className="text-xs font-semibold tabular-nums tracking-widest text-[#552E3D]/80">
+                          {ch.number}
+                        </span>
+                      </div>
+
+                      {isVisited && (
+                        <span className="text-[11px] font-medium text-[#4E5D49]">
+                          Sudah dibuka
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <h3 className="font-serif text-xl font-semibold text-[#30272A] group-hover:text-[#552E3D] transition-colors">
+                        {ch.title}
+                      </h3>
+                      <p className="text-sm text-[#6E5F63] leading-relaxed">
+                        {ch.subtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-[#30272A]/8 flex items-center justify-between gap-2">
+                    <span className="font-hand text-base text-[#A95F70] truncate">
+                      {ch.handNote}
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-[#6E5F63] group-hover:text-[#552E3D] group-hover:translate-x-1 transition-all shrink-0" />
+                  </div>
+                </motion.button>
+              );
+            })}
+
+            {isRewardUnlocked && (
+              <motion.button
+                type="button"
+                whileHover={{ y: -4 }}
+                whileTap={{ scale: 0.99 }}
+                transition={MOTION_MICRO}
+                onClick={() => navigateTo('reward')}
+                className="group rounded-[1.125rem] border border-[#A95F70]/35 bg-[#EBC9CB]/28 text-left p-5 sm:p-6 flex flex-col justify-between gap-4 shadow-polaroid hover:shadow-polaroid-lifted transition-shadow cursor-pointer"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="w-9 h-9 rounded-xl bg-[#FFFDFC] border border-[#A95F70]/25 flex items-center justify-center text-[#A95F70]">
+                      <Heart className="w-4 h-4 fill-[#EBC9CB]" />
+                    </span>
+                    <span className="text-xs font-semibold tracking-widest text-[#552E3D]">
+                      09 · TERBUKA
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="font-serif text-xl font-semibold text-[#552E3D]">
+                      Secret Meadow ♡
+                    </h3>
+                    <p className="text-sm text-[#30272A]/80 leading-relaxed">
+                      Buket lengkap 7 bunga rahasia dan surat perayaan khususmu sudah mekar.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-[#552E3D]/12 flex items-center justify-between">
+                  <span className="font-hand text-base text-[#552E3D]">
+                    Buka taman rahasiamu
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-[#552E3D] group-hover:translate-x-1 transition-transform" />
+                </div>
+              </motion.button>
+            )}
+          </div>
+        </section>
+
+        {/* SECTION 4: FEATURED MEMORIES (CURATED EDITORIAL POLAROIDS) */}
+        <section aria-label="Kenangan Pilihan" className="space-y-7">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-[#30272A]/10 pb-4">
+            <div className="space-y-1">
+              <p className="editorial-kicker">Featured Memories</p>
+              <h2 className="editorial-subheading">
+                Potongan cerita yang selalu ingin diingat
+              </h2>
+            </div>
+            <p className="text-xs text-[#6E5F63]">
+              Ketuk kartu foto untuk langsung melompat ke babnya
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
+            {FEATURED_MEMORIES.map((item) => (
+              <motion.button
+                key={item.target}
+                type="button"
+                whileHover={{ y: -5 }}
+                whileTap={{ scale: 0.99 }}
+                transition={MOTION_MICRO}
+                onClick={() => navigateTo(item.target)}
+                className="group text-left cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#A95F70] rounded-xl"
+              >
+                <figure
+                  className={`editorial-photo-frame transition-transform duration-300 group-hover:rotate-0 ${item.tiltClass}`}
+                >
+                  <div className="aspect-[4/3] overflow-hidden rounded-[4px] bg-[#EFE5D8]">
+                    <img
+                      src={item.image}
+                      alt={item.alt}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <figcaption className="pt-3.5 px-1.5 space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#A95F70]">
+                      {item.kicker}
+                    </p>
+                    <h3 className="font-serif text-lg font-semibold text-[#30272A] group-hover:text-[#552E3D] transition-colors leading-snug">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-[#6E5F63] leading-relaxed">
+                      {item.caption}
+                    </p>
+                  </figcaption>
+                </figure>
+              </motion.button>
+            ))}
+          </div>
+        </section>
+
+        {/* SECTION 5: LITTLE SURPRISES / SECRET QUEST TEASER */}
+        <motion.section
+          {...EMOTIONAL_REVEAL}
+          aria-label="Kejutan Kecil & Misi Rahasia"
+          className="relative rounded-[1.25rem] border border-[#A95F70]/26 bg-gradient-to-br from-[#FFFDFC] via-[#FDF5F3] to-[#F4E6E4] p-6 sm:p-10 shadow-polaroid"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#552E3D]">
+                <Sparkles className="w-4 h-4 text-[#A95F70]" />
+                <span>Little Surprises · Secret Quests</span>
+              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#30272A]">
+                {questDiscovered
+                  ? 'Petualangan rahasia kita sudah terbuka ♡'
+                  : 'Ada tiga misi rahasia tersembunyi di balik cerita'}
+              </h2>
+              <p className="editorial-prose text-sm sm:text-base">
+                {questDiscovered
+                  ? 'Kumpulkan 7 bunga tersembunyi untuk merangkai buket spesial, jawab 3 pertanyaan tentang kita untuk membuka kotak kado surat, dan temukan 5 Polaroid rahasia untuk galeri hati.'
+                  : 'Psst... coba ketuk karakter Mini Oktaf dua kali di pojok kanan bawah kapan pun kamu penasaran. Ada buket bunga, kado rahasia, dan galeri hati menunggumu!'}
+              </p>
+
+              {questDiscovered && (
+                <div className="pt-1 flex flex-wrap items-center gap-4 text-xs font-medium text-[#552E3D] tabular-nums">
+                  <span>
+                    Bunga: {collectedFlowers.length}/{FLOWERS_DATA.length}
+                  </span>
+                  <span aria-hidden="true" className="text-[#C9A879]">
+                    ·
+                  </span>
+                  <span>
+                    Pertanyaan:{' '}
+                    {quest2Completed
+                      ? `${TOTAL_QUEST2_QUESTIONS}/${TOTAL_QUEST2_QUESTIONS}`
+                      : `${quest2Step}/${TOTAL_QUEST2_QUESTIONS}`}
+                  </span>
+                  <span aria-hidden="true" className="text-[#C9A879]">
+                    ·
+                  </span>
+                  <span>
+                    Polaroid Hati: {collectedPolaroids.length}/{TOTAL_POLAROIDS}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="shrink-0">
+              {questDiscovered ? (
+                <button
+                  type="button"
+                  onClick={() => setQuestModalOpen(true)}
+                  className="min-h-[48px] px-6 py-3 rounded-xl bg-[#552E3D] text-[#FFFDFC] text-sm font-medium hover:bg-[#3f202c] transition-colors inline-flex items-center gap-2 shadow-polaroid cursor-pointer"
+                >
+                  <Flower2 className="w-4 h-4 text-[#EBC9CB]" />
+                  <span>Buka Secret Quests</span>
+                </button>
+              ) : (
+                <span className="font-hand text-xl text-[#552E3D] block">
+                  Petunjuk: ketuk Mini Oktaf 2× ♡
+                </span>
+              )}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* SECTION 6: CLOSING MESSAGE & CLEAN FOOTER */}
+        <footer className="pt-4 space-y-6 text-center">
+          <BotanicalDivider className="max-w-sm mx-auto" />
+
+          <div className="max-w-xl mx-auto space-y-2">
+            <p className="font-serif italic text-lg sm:text-xl text-[#30272A]">
+              &ldquo;For every page we have written, and every quiet morning yet to come.&rdquo;
+            </p>
+            <p className="text-xs text-[#6E5F63]">
+              A Little World Made For You ♡ · Untuk Wulan, dengan segala doa terbaik
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-[#6E5F63]">
+            <button
+              type="button"
+              data-testid="replay-book-intro-btn"
+              onClick={replayBookIntro}
+              className="min-h-[40px] px-2.5 inline-flex items-center gap-1.5 hover:text-[#552E3D] transition-colors cursor-pointer"
+              aria-label="Putar ulang animasi pembukaan buku"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Putar Intro</span>
+            </button>
+
+            <span aria-hidden="true" className="text-[#30272A]/25">
+              ·
+            </span>
+
+            <button
+              type="button"
+              onClick={lockExperience}
+              className="min-h-[40px] px-2.5 inline-flex items-center gap-1.5 hover:text-[#552E3D] transition-colors cursor-pointer"
+              aria-label="Kunci kembali undangan"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Kunci Buku</span>
+            </button>
+
+            {isAdmin && (
+              <>
+                <span aria-hidden="true" className="text-[#30272A]/25">
+                  ·
+                </span>
+                <a
+                  href="/admin"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.history.pushState(null, '', '/admin');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  className="min-h-[40px] px-2.5 inline-flex items-center gap-1.5 text-[#552E3D] hover:text-[#A95F70] font-medium transition-colors"
+                  aria-label="Masuk ke Control Room Admin"
+                >
+                  <span>Control Room</span>
+                </a>
+              </>
+            )}
+          </div>
+        </footer>
+      </div>
     </main>
   );
 }

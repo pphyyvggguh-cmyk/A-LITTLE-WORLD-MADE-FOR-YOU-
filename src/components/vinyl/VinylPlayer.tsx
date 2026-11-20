@@ -23,6 +23,7 @@ import {
   loadYouTubeIframeAPI,
   YTPlayerInstance,
 } from '../../utils/youtubePlayer';
+import { formatSafeUiError } from '../../utils/safeError';
 
 function VinylDiscArt({
   isPlaying,
@@ -248,9 +249,11 @@ export function VinylPlayer() {
       .catch((err) => {
         if (!cancelled) {
           setPlayerError(
-            err instanceof Error
-              ? err.message
-              : 'YouTube Player belum siap (periksa koneksi).'
+            formatSafeUiError(
+              err,
+              'YouTube Player belum siap (periksa koneksi).',
+              'public'
+            )
           );
         }
       });
@@ -363,7 +366,7 @@ export function VinylPlayer() {
       data-testid="vinyl-player"
       data-no-chapter-swipe="true"
       data-playing={isPlaying ? 'true' : 'false'}
-      className="fixed bottom-3 left-3 sm:bottom-5 sm:left-5 z-40"
+      className="fixed bottom-[70px] left-2.5 md:bottom-5 md:left-5 z-40"
     >
       {/* Persistent offscreen YouTube IFrame container */}
       <div
@@ -374,20 +377,20 @@ export function VinylPlayer() {
       </div>
 
       {!expanded ? (
-        /* Collapsed Vintage Vinyl Pill */
-        <div className="flex items-center gap-2 rounded-full border border-[#38271F]/18 bg-[#FBF6EE]/96 pl-1.5 pr-2 py-1.5 shadow-polaroid-lifted backdrop-blur-xs max-w-[calc(100vw-8.5rem)] sm:max-w-[290px]">
+        /* Collapsed Vintage Vinyl Card */
+        <div className="flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-[#30272A]/14 bg-[#FFFDFC] pl-1.5 pr-1.5 sm:pr-2 py-1 shadow-polaroid-lifted max-w-[172px] sm:max-w-[280px]">
           <button
             type="button"
             onClick={handleTogglePlay}
             aria-label={isPlaying ? `Jeda ${currentTrack.title}` : `Putar ${currentTrack.title}`}
-            className="relative rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-[#A6533B] shrink-0"
+            className="relative rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-[#A95F70] shrink-0"
           >
             <VinylDiscArt
               isPlaying={isPlaying}
               thumbnailUrl={currentTrack.thumbnailUrl}
-              sizeClass="w-10 h-10"
+              sizeClass="w-9 h-9 sm:w-10 sm:h-10"
             />
-            <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#38271F] text-[#F4EBDD] flex items-center justify-center shadow">
+            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#552E3D] text-[#FFFDFC] flex items-center justify-center shadow">
               {isPlaying ? (
                 <Pause className="w-2.5 h-2.5" />
               ) : (
@@ -400,12 +403,12 @@ export function VinylPlayer() {
             type="button"
             onClick={() => setExpanded(true)}
             aria-label="Buka pemutar Vinyl Player"
-            className="min-w-0 flex-1 text-left px-1 py-1 cursor-pointer"
+            className="min-w-0 flex-1 text-left px-0.5 py-0.5 cursor-pointer"
           >
-            <p className="text-[10px] uppercase tracking-wider text-[#743D4A] font-semibold truncate">
-              {isPlaying ? 'Sedang Diputar' : isBuffering ? 'Memuat...' : 'Vinyl Player ♡'}
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-[#552E3D] font-semibold truncate">
+              {isPlaying ? 'Diputar' : isBuffering ? 'Memuat...' : 'Vinyl ♡'}
             </p>
-            <p className="text-xs font-serif font-semibold text-[#38271F] truncate">
+            <p className="text-[11px] sm:text-xs font-serif font-semibold text-[#30272A] truncate">
               {currentTrack.title}
             </p>
           </button>
@@ -414,24 +417,24 @@ export function VinylPlayer() {
             type="button"
             onClick={() => setExpanded(true)}
             aria-label="Perluas pemutar Vinyl"
-            className="min-w-[36px] min-h-[36px] rounded-full hover:bg-[#EAE0CF] flex items-center justify-center text-[#38271F] cursor-pointer shrink-0"
+            className="min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] rounded-xl hover:bg-[#F8F1E8] flex items-center justify-center text-[#30272A] cursor-pointer shrink-0"
           >
             <ChevronUp className="w-4 h-4" />
           </button>
         </div>
       ) : (
         /* Expanded Turntable Card */
-        <section className="relative w-[min(340px,calc(100vw-1.5rem))] rounded-2xl border border-[#38271F]/18 bg-[#FBF6EE] p-4 shadow-polaroid-lifted">
+        <section className="relative w-[min(340px,calc(100vw-1.5rem))] rounded-2xl border border-[#30272A]/14 bg-[#FFFDFC] p-4 shadow-polaroid-lifted">
           <span
             aria-hidden="true"
             className="washi-tape-gold absolute -top-2.5 left-8 w-16 h-4 -rotate-2"
           />
 
           {/* Header Bar */}
-          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[#38271F]/12">
+          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[#30272A]/10">
             <div className="flex items-center gap-1.5 min-w-0">
-              <Disc3 className="w-4 h-4 text-[#A6533B] shrink-0" />
-              <h2 className="font-serif text-sm font-semibold text-[#38271F] truncate">
+              <Disc3 className="w-4 h-4 text-[#A95F70] shrink-0" />
+              <h2 className="font-serif text-sm font-semibold text-[#30272A] truncate">
                 {vinylConfig.title || 'Our Little Vinyl Player ♡'}
               </h2>
             </div>
@@ -561,7 +564,7 @@ export function VinylPlayer() {
                 type="button"
                 onClick={handleTogglePlay}
                 aria-label={isPlaying ? 'Jeda lagu' : 'Putar lagu'}
-                className="min-w-[46px] min-h-[44px] px-3.5 rounded-xl bg-[#38271F] text-[#F4EBDD] flex items-center justify-center hover:bg-[#4e382d] cursor-pointer shadow-sm"
+                className="min-w-[46px] min-h-[44px] px-3.5 rounded-xl bg-[#552E3D] text-[#FFFDFC] flex items-center justify-center hover:bg-[#3f202c] cursor-pointer shadow-sm"
               >
                 {isPlaying ? (
                   <Pause className="w-4 h-4" />
@@ -575,7 +578,7 @@ export function VinylPlayer() {
                 onClick={handleNext}
                 aria-label="Lagu berikutnya"
                 disabled={playlist.length <= 1}
-                className="min-w-[40px] min-h-[40px] rounded-xl border border-[#38271F]/16 bg-[#F4EBDD] flex items-center justify-center text-[#38271F] hover:bg-[#EAE0CF] disabled:opacity-40 cursor-pointer"
+                className="min-w-[40px] min-h-[40px] rounded-xl border border-[#30272A]/16 bg-[#F8F1E8] flex items-center justify-center text-[#30272A] hover:bg-[#EBC9CB]/35 disabled:opacity-40 cursor-pointer"
               >
                 <SkipForward className="w-4 h-4" />
               </button>

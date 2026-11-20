@@ -5,11 +5,11 @@
   - Primary admin is strictly `oktafmbul0@gmail.com` (`email_verified == true`), verified either directly by verified email match or `/admins/{request.auth.uid}` existence.
   - Users cannot self-assign admin status in any collection.
 - **Couple Authorization Config (`/config/access`)**:
-  - Holds `adminEmail`, `oktafEmail`, `wulanEmail`, and `wishlistPrivacyMode`.
-  - Readable ONLY by `isAdmin()` or the verified email configured in `resource.data.wulanEmail`. Never readable by public/anonymous visitors (PII protection).
+  - Holds `adminEmail`, `oktafEmail`, `wulanEmail` (default `wulanainindya92@gmail.com`), and `wishlistPrivacyMode`.
+  - Readable ONLY by `isAdmin()` or the verified Wulan account (`config/access.wulanEmail` or default `wulanainindya92@gmail.com` when unconfigured). Never readable by public/anonymous visitors or strangers (PII protection).
   - Mutable ONLY by `isAdmin()`.
 - **Public Content Partition (`/siteContent/{sectionId}`)**:
-  - Partitioned to fixed keys `story`, `world`, `letters`, `video`, `miniOktaf`, `vinyl` so every doc stays well under Firestore's 1MB limit.
+  - Partitioned to fixed keys `story`, `world`, `letters`, `video`, `miniOktaf`, `vinyl`, `jar` so every doc stays well under Firestore's 1MB limit.
   - Public visitors can `get` individual sections; `list` is restricted to `isAdmin()`.
   - Only `isAdmin()` can `create` / `update` / `delete`.
 - **Voices of Love (`/voices/{voiceId}`)**:
@@ -67,3 +67,20 @@
 10. **Orphan Secret Without Envelope**: User attempts `create` on `/postcards/nonexistent/secret/content` without parent envelope existing in same batch.
 11. **Unauthorized Personal Wish Edit**: Wulan tries to edit Oktaf's `private` personal wish (`category: 'your'`).
 12. **Terminal State Regression**: Non-admin tries to revert a `'completed'` wish back to `'dreaming'` in `/wishlist/{wishId}`.
+
+## 4. A Jar Full of Thoughts Security Architecture
+- **Feature Settings (`/siteContent/jar`)**:
+  - Publicly readable via `allow get`; writable strictly by `isAdmin()`.
+- **Moderation & Submission Queue (`/jarThoughts/{thoughtId}`)**:
+  - Friends on public `#/leave-a-thought` may ONLY `create` documents with `source == 'public'`, `status == 'pending'`, `opened == false`, no `openedAt`, and server timestamps (`request.time`).
+  - `get`, `list`, `update`, and `delete` on `/jarThoughts` are strictly `isAdmin()` / `isBootstrappedAdmin()`. Friends and public visitors can NEVER read or list any submitted thoughts.
+- **Sanitized Approved Jar Pool (`/jarPool/{thoughtId}`)**:
+  - Contains ONLY admin-approved thoughts (`isApproved == true`) with anonymous senders strictly masked as `displayAuthor == 'Someone Special'` (enforced in Firestore rules). Never stores real `senderInitial` for anonymous messages.
+  - Atomic reveal updates (`opened: false -> true`, `openedAt == request.time`) require simultaneous atomic pairing (`getAfter`) with `/jarState/cooldown`.
+- **Trusted Cooldown Lock (`/jarState/cooldown`)**:
+  - Enforces server-side `request.time >= existing().lastOpenedAt + duration.value(24, 'h')` and `getAfter` pairing against `/jarPool/{thoughtId}` so device clock tampering, empty-pool reveals, double opens, or concurrent race opens are blocked at the database layer as well as Express `/api/jar/*` guards.
+
+## 5. Our Little Heart Gallery Security Architecture
+- **Gallery Entries (`/heartGallery/{photoId}`)**:
+  - Public `get` / `list` is strictly scoped via `resource.data.isPublished == true || isAdmin()`.
+  - All mutations (`create`, `update`, `delete`) require `isAdmin()`, strict field schema validation (`isValidHeartGalleryPhoto`: valid `theme` enum, `order` `1..500`, `caption` `1..180` chars, bounded `imageUrl`), immutable `ownerUid` and `createdAt`, and server `request.time` timestamps.

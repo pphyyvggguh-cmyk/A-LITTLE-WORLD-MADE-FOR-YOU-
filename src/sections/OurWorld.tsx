@@ -42,24 +42,30 @@ const _curCamDir = new THREE.Vector3();
 const _raycaster = new THREE.Raycaster();
 const _pointer = new THREE.Vector2();
 
-function buildAirplaneGroup(): THREE.Group {
+function buildAirplaneGroup(useLightweightMat = false): THREE.Group {
   const group = new THREE.Group();
 
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: 0xfbf6ee,
-    roughness: 0.45,
-    metalness: 0.12,
-  });
-  const accentMat = new THREE.MeshStandardMaterial({
-    color: 0xa6533b,
-    roughness: 0.35,
-    metalness: 0.25,
-  });
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x38271f,
-    roughness: 0.15,
-    metalness: 0.6,
-  });
+  const bodyMat = useLightweightMat
+    ? new THREE.MeshLambertMaterial({ color: 0xfbf6ee })
+    : new THREE.MeshStandardMaterial({
+        color: 0xfbf6ee,
+        roughness: 0.45,
+        metalness: 0.12,
+      });
+  const accentMat = useLightweightMat
+    ? new THREE.MeshLambertMaterial({ color: 0xa6533b })
+    : new THREE.MeshStandardMaterial({
+        color: 0xa6533b,
+        roughness: 0.35,
+        metalness: 0.25,
+      });
+  const glassMat = useLightweightMat
+    ? new THREE.MeshLambertMaterial({ color: 0x38271f })
+    : new THREE.MeshStandardMaterial({
+        color: 0x38271f,
+        roughness: 0.15,
+        metalness: 0.6,
+      });
 
   // 1. Fuselage along +Z
   const fuselageGeo = new THREE.CapsuleGeometry(0.018, 0.07, 6, 12);
@@ -303,46 +309,56 @@ export function OurWorld() {
     );
   };
 
-  // Mount Three.js scene ONCE
+  // Mount Three.js scene ONCE (deferred until transition frame settles so navigation never stalls clicks)
   useEffect(() => {
     const mount = canvasMountRef.current;
     if (!mount) return;
 
-    // Probe Software WebGL (SwiftShader/llvmpipe) cleanly
-    const isSoftwareGl = (() => {
+    let unmounted = false;
+    let sceneCleanup: (() => void) | null = null;
+
+    const initTimerId = window.setTimeout(() => {
+      if (unmounted) return;
+      sceneCleanup = mountWebGLScene();
+    }, 180);
+
+    function mountWebGLScene(): (() => void) | null {
+      if (!mount) return null;
+
+      let renderer: THREE.WebGLRenderer;
       try {
-        const probe = document.createElement('canvas').getContext('webgl2');
-        if (!probe) return true;
-        const ext = probe.getExtension('WEBGL_debug_renderer_info');
-        const param = ext ? ext.UNMASKED_RENDERER_WEBGL : probe.RENDERER;
-        const gpu = String(probe.getParameter(param));
-        probe.getExtension('WEBGL_lose_context')?.loseContext();
-        return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
+        renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          powerPreference: 'high-performance',
+        });
       } catch {
-        return true;
+        setWebglFailed(true);
+        return null;
       }
-    })();
 
-    let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({
-        antialias: !isSoftwareGl,
-        powerPreference: 'high-performance',
-      });
-    } catch {
-      setWebglFailed(true);
-      return;
-    }
+      const isSoftwareGl = (() => {
+        try {
+          const gl = renderer.getContext();
+          const ext = gl.getExtension('WEBGL_debug_renderer_info');
+          const param = ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER;
+          const gpu = String(gl.getParameter(param));
+          return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
+        } catch {
+          return false;
+        }
+      })();
 
-    const width = mount.clientWidth || window.innerWidth;
-    const height = mount.clientHeight || window.innerHeight - 56;
+      const width = mount.clientWidth || window.innerWidth;
+      const height = mount.clientHeight || window.innerHeight - 56;
 
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
-    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(width, height);
-    mount.appendChild(renderer.domElement);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = isSoftwareGl
+        ? THREE.NoToneMapping
+        : THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
+      renderer.setPixelRatio(isSoftwareGl ? 0.55 : Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(width, height);
+      mount.appendChild(renderer.domElement);
 
     const onContextLost = (e: Event) => {
       e.preventDefault();
@@ -353,10 +369,12 @@ export function OurWorld() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c1624);
 
-    // Studio environment map for crisp metallic pin/airplane specular highlights
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-    pmremGenerator.dispose();
+    // Studio environment map for metallic specular highlights on GPU (skipped on software WebGL for snappy UI)
+    if (!isSoftwareGl) {
+      const pmremGenerator = new THREE.PMREMGenerator(renderer);
+      scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmremGenerator.dispose();
+    }
 
     const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
     // Start camera facing Indonesia/Asia with comfortable margin around header & dock
@@ -408,33 +426,60 @@ export function OurWorld() {
     scene.add(stars);
 
     // Earth Globe
-    const earthTextures = createEarthTextures(renderer.capabilities.getMaxAnisotropy());
-    const globeGeo = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 48);
-    const globeMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      map: earthTextures.dayMap,
-      bumpMap: earthTextures.bumpMap,
-      bumpScale: 0.025,
-      roughness: 0.72,
-      metalness: 0.08,
-    });
+    const earthTextures = createEarthTextures(
+      isSoftwareGl ? 1 : renderer.capabilities.getMaxAnisotropy(),
+      isSoftwareGl
+    );
+    const globeGeo = new THREE.SphereGeometry(
+      GLOBE_RADIUS,
+      isSoftwareGl ? 32 : 64,
+      isSoftwareGl ? 24 : 48
+    );
+    const globeMat = isSoftwareGl
+      ? new THREE.MeshLambertMaterial({
+          color: 0xffffff,
+          map: earthTextures.dayMap,
+        })
+      : new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          map: earthTextures.dayMap,
+          bumpMap: earthTextures.bumpMap,
+          bumpScale: 0.025,
+          roughness: 0.72,
+          metalness: 0.08,
+        });
     const globeMesh = new THREE.Mesh(globeGeo, globeMat);
     scene.add(globeMesh);
 
     // Cloud layer
-    const cloudGeo = new THREE.SphereGeometry(GLOBE_RADIUS + 0.018, 48, 36);
-    const cloudMat = new THREE.MeshStandardMaterial({
-      map: earthTextures.cloudMap,
-      transparent: true,
-      opacity: 0.65,
-      depthWrite: false,
-      roughness: 0.9,
-    });
+    const cloudGeo = new THREE.SphereGeometry(
+      GLOBE_RADIUS + 0.018,
+      isSoftwareGl ? 24 : 48,
+      isSoftwareGl ? 18 : 36
+    );
+    const cloudMat = isSoftwareGl
+      ? new THREE.MeshLambertMaterial({
+          map: earthTextures.cloudMap,
+          transparent: true,
+          opacity: 0.65,
+          depthWrite: false,
+        })
+      : new THREE.MeshStandardMaterial({
+          map: earthTextures.cloudMap,
+          transparent: true,
+          opacity: 0.65,
+          depthWrite: false,
+          roughness: 0.9,
+        });
     const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
     scene.add(cloudMesh);
 
     // Subtle Atmospheric Rim Glow
-    const atmoGeo = new THREE.SphereGeometry(GLOBE_RADIUS + 0.065, 48, 36);
+    const atmoGeo = new THREE.SphereGeometry(
+      GLOBE_RADIUS + 0.065,
+      isSoftwareGl ? 24 : 48,
+      isSoftwareGl ? 18 : 36
+    );
     const atmoMat = new THREE.MeshBasicMaterial({
       color: 0x6ca6cd,
       transparent: true,
@@ -454,30 +499,44 @@ export function OurWorld() {
     const pinHeads = new Map<string, { head: THREE.Mesh; ring: THREE.Mesh }>();
 
     const stemGeo = new THREE.CylinderGeometry(0.005, 0.003, 0.055, 8);
-    const headGeo = new THREE.SphereGeometry(0.022, 12, 10);
-    const ringGeo = new THREE.RingGeometry(0.028, 0.04, 24);
+    const headGeo = new THREE.SphereGeometry(0.022, 10, 8);
+    const ringGeo = new THREE.RingGeometry(0.028, 0.04, 20);
     const proxyGeo = new THREE.SphereGeometry(0.085, 8, 8);
     const proxyMat = new THREE.MeshBasicMaterial({ visible: false });
 
-    const defaultHeadMat = new THREE.MeshStandardMaterial({
-      color: 0xa6533b,
-      emissive: 0x5c2012,
-      emissiveIntensity: 0.45,
-      roughness: 0.3,
-      metalness: 0.2,
-    });
-    const activeHeadMat = new THREE.MeshStandardMaterial({
-      color: 0xe8bfc5,
-      emissive: 0xc4a574,
-      emissiveIntensity: 0.9,
-      roughness: 0.2,
-      metalness: 0.3,
-    });
-    const stemMat = new THREE.MeshStandardMaterial({
-      color: 0xf4ebdd,
-      roughness: 0.4,
-      metalness: 0.5,
-    });
+    const defaultHeadMat = isSoftwareGl
+      ? new THREE.MeshLambertMaterial({
+          color: 0xa6533b,
+          emissive: 0x5c2012,
+          emissiveIntensity: 0.45,
+        })
+      : new THREE.MeshStandardMaterial({
+          color: 0xa6533b,
+          emissive: 0x5c2012,
+          emissiveIntensity: 0.45,
+          roughness: 0.3,
+          metalness: 0.2,
+        });
+    const activeHeadMat = isSoftwareGl
+      ? new THREE.MeshLambertMaterial({
+          color: 0xe8bfc5,
+          emissive: 0xc4a574,
+          emissiveIntensity: 0.9,
+        })
+      : new THREE.MeshStandardMaterial({
+          color: 0xe8bfc5,
+          emissive: 0xc4a574,
+          emissiveIntensity: 0.9,
+          roughness: 0.2,
+          metalness: 0.3,
+        });
+    const stemMat = isSoftwareGl
+      ? new THREE.MeshLambertMaterial({ color: 0xf4ebdd })
+      : new THREE.MeshStandardMaterial({
+          color: 0xf4ebdd,
+          roughness: 0.4,
+          metalness: 0.5,
+        });
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xc4a574,
       side: THREE.DoubleSide,
@@ -521,7 +580,7 @@ export function OurWorld() {
     }
 
     // Airplane & Great-Circle Route Trail
-    const airplane = buildAirplaneGroup();
+    const airplane = buildAirplaneGroup(isSoftwareGl);
     scene.add(airplane);
 
     const routeMat = new THREE.LineBasicMaterial({
@@ -601,7 +660,8 @@ export function OurWorld() {
     }
 
     // Render loop & Software WebGL afterDraw pacing
-    let frameId = 0;
+    let rafId = 0;
+    let timerId = 0;
     let disposed = false;
     let lastTime = performance.now();
     let renderBusy = false;
@@ -610,22 +670,25 @@ export function OurWorld() {
     const afterDraw = (cb: () => void) => {
       const gl = renderer.getContext() as WebGL2RenderingContext;
       if (!gl || typeof gl.fenceSync !== 'function') {
-        frameId = window.setTimeout(cb, 80);
+        timerId = window.setTimeout(cb, 260);
         return;
       }
       const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
       gl.flush();
       const poll = () => {
-        if (disposed) return;
+        if (disposed) {
+          if (sync) gl.deleteSync(sync);
+          return;
+        }
         const state = sync && gl.getSyncParameter(sync, gl.SYNC_STATUS);
         if (state === gl.UNSIGNALED) {
-          frameId = window.setTimeout(poll, 5);
+          timerId = window.setTimeout(poll, 24);
         } else {
           if (sync) gl.deleteSync(sync);
-          frameId = window.setTimeout(cb, 80);
+          timerId = window.setTimeout(cb, 260);
         }
       };
-      frameId = window.setTimeout(poll, 5);
+      timerId = window.setTimeout(poll, 24);
     };
 
     const updateScene = (dt: number) => {
@@ -714,7 +777,7 @@ export function OurWorld() {
       if (isSoftwareGl) {
         if (needsContinuous) {
           afterDraw(() => {
-            if (!disposed) frameId = requestAnimationFrame(renderFrame);
+            if (!disposed) rafId = requestAnimationFrame(renderFrame);
           });
         } else {
           afterDraw(() => {
@@ -726,7 +789,7 @@ export function OurWorld() {
           });
         }
       } else {
-        frameId = requestAnimationFrame(renderFrame);
+        rafId = requestAnimationFrame(renderFrame);
       }
     };
 
@@ -737,7 +800,7 @@ export function OurWorld() {
         // Ensure continuous loop wakes up if paused before
         if (!renderBusy) {
           renderBusy = true;
-          frameId = requestAnimationFrame(renderFrame);
+          rafId = requestAnimationFrame(renderFrame);
         }
         return;
       }
@@ -746,7 +809,7 @@ export function OurWorld() {
         return;
       }
       renderBusy = true;
-      frameId = requestAnimationFrame(() => {
+      rafId = requestAnimationFrame(() => {
         renderDirty = false;
         renderFrame();
       });
@@ -768,12 +831,12 @@ export function OurWorld() {
 
     // Kick off initial render
     renderBusy = true;
-    frameId = requestAnimationFrame(renderFrame);
+    rafId = requestAnimationFrame(renderFrame);
 
     return () => {
       disposed = true;
-      cancelAnimationFrame(frameId);
-      clearTimeout(frameId);
+      cancelAnimationFrame(rafId);
+      clearTimeout(timerId);
       window.removeEventListener('resize', onResize);
       controls.removeEventListener('change', requestRender);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -804,12 +867,19 @@ export function OurWorld() {
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
       }
+      };
+    }
+
+    return () => {
+      unmounted = true;
+      window.clearTimeout(initTimerId);
+      sceneCleanup?.();
     };
   }, []);
 
   return (
     <main
-      className="relative w-full h-full overflow-hidden bg-[#0C1624] text-[#F4EBDD]"
+      className="relative w-full h-[calc(100dvh-3rem)] md:h-[calc(100dvh-3.5rem)] overflow-hidden bg-[#0C1624] text-[#F8F1E8]"
       data-testid="our-world-section"
       data-selected-city={selectedDestination.city}
     >
@@ -833,12 +903,12 @@ export function OurWorld() {
 
       {/* Top-Left Editorial Celestial Compass Header + Flower #4 */}
       <div className="pointer-events-none absolute top-3 left-3 sm:top-5 sm:left-6 z-20 flex items-start gap-2.5 sm:gap-3">
-        <div className="pointer-events-auto bg-[#121F30]/92 border border-[#C4A574]/30 rounded-xl px-3.5 py-2.5 shadow-lg">
-          <div className="flex items-center gap-2 text-xs text-[#C4A574] font-medium tracking-wider uppercase">
+        <div className="pointer-events-auto bg-[#121F30]/92 border border-[#C9A879]/35 rounded-xl px-3.5 py-2.5 shadow-lg">
+          <div className="flex items-center gap-2 text-xs text-[#C9A879] font-medium tracking-wider uppercase">
             <Compass className="w-3.5 h-3.5" />
             <span>02 · Our World · 20 Destinasi</span>
           </div>
-          <p className="mt-0.5 font-hand text-base text-[#F4EBDD]/82 hidden sm:block">
+          <p className="mt-0.5 font-hand text-base text-[#F8F1E8]/85 hidden sm:block">
             Putar bola bumi atau pilih kota di bawah untuk melihat kartu Polaroid.
           </p>
         </div>
@@ -864,7 +934,7 @@ export function OurWorld() {
                 type="button"
                 onClick={() => setCardOpen(false)}
                 aria-label="Tutup kartu Polaroid destinasi"
-                className="absolute -top-2 -right-2 z-30 min-w-[40px] min-h-[40px] rounded-full bg-[#38271F] text-[#F4EBDD] border border-[#C4A574]/40 flex items-center justify-center shadow-md hover:bg-[#4e382d] cursor-pointer"
+                className="absolute -top-2 -right-2 z-30 min-w-[40px] min-h-[40px] rounded-full bg-[#552E3D] text-[#FFFDFC] border border-[#C9A879]/45 flex items-center justify-center shadow-md hover:bg-[#3f202c] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -879,12 +949,12 @@ export function OurWorld() {
                 rotation={1.2}
                 size="sm"
                 footerExtra={
-                  <div className="pt-2 mt-2 border-t border-[#38271F]/12 space-y-2">
-                    <p className="text-[11px] text-[#38271F]/78 leading-snug">
+                  <div className="pt-2 mt-2 border-t border-[#30272A]/12 space-y-2">
+                    <p className="text-[11px] text-[#6E5F63] leading-snug">
                       {selectedDestination.description}
                     </p>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-[#38271F]/55 tabular-nums">
+                      <span className="text-[10px] text-[#6E5F63] tabular-nums">
                         {selectedDestination.lat.toFixed(2)}°, {selectedDestination.lng.toFixed(2)}°
                       </span>
                       <button
@@ -896,7 +966,7 @@ export function OurWorld() {
                             setDockTab('flight');
                           }
                         }}
-                        className="min-h-[36px] px-2.5 py-1 rounded-md bg-[#455342] text-[#F4EBDD] text-[10px] font-medium hover:bg-[#384435] inline-flex items-center gap-1 cursor-pointer"
+                        className="min-h-[36px] px-2.5 py-1 rounded-lg bg-[#4E5D49] text-[#FFFDFC] text-[10px] font-medium hover:bg-[#3e4b3a] inline-flex items-center gap-1 cursor-pointer"
                       >
                         <Plane className="w-3 h-3" />
                         <span>Terbang ke Sini</span>
@@ -910,25 +980,25 @@ export function OurWorld() {
         )}
       </AnimatePresence>
 
-      {/* Collapsible Bottom Control Dock (Zero Central Viewport, Vinyl Player & Mini Oktaf Occlusion) */}
+      {/* Collapsible Bottom Control Dock (Zero Central Viewport, Bottom Nav, Vinyl & Mini Oktaf Occlusion) */}
       <div
         data-no-chapter-swipe="true"
-        className="absolute bottom-[4.75rem] sm:bottom-5 left-3 sm:left-1/2 sm:-translate-x-1/2 z-20 w-[calc(100vw-1.5rem)] sm:w-[min(540px,calc(100vw-24rem))]"
+        className="absolute bottom-[7.75rem] md:bottom-5 left-3 md:left-1/2 md:-translate-x-1/2 z-20 w-[calc(100vw-1.5rem)] md:w-[min(540px,calc(100vw-24rem))]"
       >
         <div className="flex justify-center mb-1.5">
           <button
             type="button"
             onClick={() => setDockExpanded((v) => !v)}
-            className="min-h-[40px] px-4 py-1.5 rounded-lg bg-[#121F30]/95 border border-[#C4A574]/35 text-xs font-medium text-[#F4EBDD] inline-flex items-center gap-1.5 shadow-md hover:bg-[#1b2d44] cursor-pointer"
+            className="min-h-[40px] px-4 py-1.5 rounded-lg bg-[#121F30]/95 border border-[#C9A879]/35 text-xs font-medium text-[#F8F1E8] inline-flex items-center gap-1.5 shadow-md hover:bg-[#1b2d44] cursor-pointer"
           >
             {dockExpanded ? (
               <>
-                <ChevronDown className="w-3.5 h-3.5 text-[#C4A574]" />
+                <ChevronDown className="w-3.5 h-3.5 text-[#C9A879]" />
                 <span>Sembunyikan Kontrol</span>
               </>
             ) : (
               <>
-                <ChevronUp className="w-3.5 h-3.5 text-[#C4A574]" />
+                <ChevronUp className="w-3.5 h-3.5 text-[#C9A879]" />
                 <span>Tampilkan Kontrol Peta</span>
               </>
             )}
