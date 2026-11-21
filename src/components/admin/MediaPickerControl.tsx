@@ -1,7 +1,8 @@
-import { ChangeEvent, useId, useState } from 'react';
-import { FolderOpen, Upload } from 'lucide-react';
+import { ChangeEvent, useEffect, useId, useState } from 'react';
+import { FolderOpen, ImageOff, Upload } from 'lucide-react';
 import { MediaAssetItem, uploadMediaFile } from '../../utils/adminApi';
 import { MediaKind } from '../../utils/adminContent';
+import { isLegacyEphemeralUploadUrl } from '../../utils/imageOptimizer';
 import { formatSafeUiError } from '../../utils/safeError';
 
 interface MediaPickerControlProps {
@@ -32,6 +33,12 @@ export function MediaPickerControl({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [showLibrary, setShowLibrary] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+  const [brokenThumbUrls, setBrokenThumbUrls] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setPreviewError(false);
+  }, [currentUrl]);
 
   const acceptMap: Record<MediaKind, string> = {
     image: '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp',
@@ -50,7 +57,7 @@ export function MediaPickerControl({
   const handleFilePick = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (!file || uploading) return;
 
     setError('');
     setUploading(true);
@@ -62,6 +69,7 @@ export function MediaPickerControl({
         (pct) => setProgress(pct),
         replaceTargetUrl
       );
+      setPreviewError(false);
       onChangeUrl(result.url, result.filename);
       await onMediaRefresh();
     } catch (err) {
@@ -81,14 +89,31 @@ export function MediaPickerControl({
       {currentUrl && (
         <div className="flex items-center gap-3 rounded-lg bg-[#FBF6EE] border border-[#38271F]/10 p-2">
           {kind === 'image' && (
-            <img
-              src={currentUrl}
-              alt={label}
-              className="w-12 h-12 rounded-md object-cover shrink-0 bg-[#EAE0CF]"
-            />
+            previewError ? (
+              <div
+                aria-label="Pratinjau gambar tidak tersedia"
+                className="w-12 h-12 rounded-md shrink-0 bg-[#EAE0CF] border border-[#A6533B]/25 flex items-center justify-center text-[#A6533B]"
+              >
+                <ImageOff className="w-4 h-4" />
+              </div>
+            ) : (
+              <img
+                src={currentUrl}
+                alt={label}
+                onError={() => setPreviewError(true)}
+                className="w-12 h-12 rounded-md object-cover shrink-0 bg-[#EAE0CF]"
+              />
+            )
           )}
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-[#38271F] truncate">{currentUrl}</p>
+            {kind === 'image' && previewError && (
+              <p className="text-[10px] text-[#A6533B] leading-snug mt-0.5">
+                {isLegacyEphemeralUploadUrl(currentUrl)
+                  ? 'Foto lama di server lokal tidak lagi tersedia — unggah ulang foto baru (judul, tanggal & caption tetap aman).'
+                  : 'Pratinjau gambar gagal dimuat. Coba unggah ulang file gambar.'}
+              </p>
+            )}
             {kind === 'audio' && (
               <audio src={currentUrl} controls preload="metadata" className="mt-1.5 w-full h-8" />
             )}
@@ -108,7 +133,9 @@ export function MediaPickerControl({
       <div className="flex flex-wrap items-center gap-2">
         <label
           htmlFor={inputId}
-          className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#38271F] text-[#F4EBDD] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#4e382d] cursor-pointer"
+          className={`min-h-[44px] px-3.5 py-2 rounded-xl bg-[#38271F] text-[#F4EBDD] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#4e382d] cursor-pointer ${
+            uploading ? 'opacity-65 pointer-events-none' : ''
+          }`}
         >
           <Upload className="w-3.5 h-3.5" />
           <span>{uploading ? `Mengunggah ${progress}%...` : 'Unggah dari HP / Device'}</span>
@@ -174,11 +201,22 @@ export function MediaPickerControl({
                 }`}
               >
                 {kind === 'image' && (
-                  <img
-                    src={item.url}
-                    alt={item.filename}
-                    className="w-8 h-8 rounded object-cover shrink-0 bg-[#EAE0CF]"
-                  />
+                  brokenThumbUrls[item.url] ? (
+                    <div className="w-8 h-8 rounded shrink-0 bg-[#EAE0CF] flex items-center justify-center text-[#A6533B]">
+                      <ImageOff className="w-3.5 h-3.5" />
+                    </div>
+                  ) : (
+                    <img
+                      src={item.url}
+                      alt={item.filename}
+                      onError={() =>
+                        setBrokenThumbUrls((prev) =>
+                          prev[item.url] ? prev : { ...prev, [item.url]: true }
+                        )
+                      }
+                      className="w-8 h-8 rounded object-cover shrink-0 bg-[#EAE0CF]"
+                    />
+                  )
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium truncate">{item.filename}</p>

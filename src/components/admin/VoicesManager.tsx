@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, CheckCircle2, Plus, Save, Trash2 } from 'lucide-react';
 import {
   VOICE_FLOWER_OPTIONS,
+  VOICE_FLOWER_QUANTITY_MAX,
+  VOICE_FLOWER_QUANTITY_MIN,
   VoiceFlowerType,
   VoiceOfLoveEntry,
 } from '../../data/voices';
@@ -11,7 +13,9 @@ import {
   reorderVoiceEntry,
   SiteContentPayload,
 } from '../../utils/adminContent';
+import { clampFlowerQuantity } from '../../utils/unifiedContribution';
 import { formatSafeUiError } from '../../utils/safeError';
+import { VoiceBouquetDisplay } from '../voices/VoiceBouquetDisplay';
 import { VoiceFlowerSVG } from '../voices/VoiceFlowerSVG';
 import { MediaPickerControl } from './MediaPickerControl';
 
@@ -65,6 +69,7 @@ export function VoicesManager({
       id: `voice-${Date.now()}`,
       name: `Sahabat ${usedCount + 1}`,
       flowerType: flower,
+      flowerQuantity: 1,
       audioUrl: '',
       audioFileName: '',
       photoUrl: '',
@@ -221,10 +226,14 @@ export function VoicesManager({
                     onClick={() => setSelectedId(item.id)}
                     className="flex-1 min-h-[40px] flex items-center gap-2.5 text-left px-1.5 cursor-pointer"
                   >
-                    <VoiceFlowerSVG flowerType={item.flowerType} className="w-8 h-8 shrink-0" />
+                    <VoiceBouquetDisplay
+                      flowerType={item.flowerType}
+                      quantity={item.flowerQuantity ?? 1}
+                      size="sm"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-[#38271F] truncate">
-                        {item.order}. {item.name}
+                        {item.order}. {item.name} · {clampFlowerQuantity(item.flowerQuantity ?? 1)}× bunga
                       </p>
                       <p className="text-[11px] text-[#38271F]/60 truncate">
                         {item.audioUrl ? item.audioFileName || item.audioUrl : 'Belum ada file MP3'}
@@ -279,13 +288,19 @@ export function VoicesManager({
       ) : (
         <div className="rounded-2xl border border-[#38271F]/14 bg-[#FBF6EE] p-4 sm:p-6 shadow-polaroid space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#38271F]/10">
-            <div className="flex items-center gap-2.5">
-              <VoiceFlowerSVG flowerType={current.flowerType} className="w-10 h-10" />
+            <div className="flex items-center gap-3">
+              <VoiceBouquetDisplay
+                flowerType={current.flowerType}
+                quantity={current.flowerQuantity ?? 1}
+                size="sm"
+              />
               <div>
                 <h3 className="font-serif text-lg font-semibold text-[#38271F]">
                   Edit: {current.name}
                 </h3>
-                <p className="text-[11px] text-[#38271F]/60">Urutan tampil #{current.order}</p>
+                <p className="text-[11px] text-[#38271F]/60">
+                  Urutan tampil #{current.order} · Buket {clampFlowerQuantity(current.flowerQuantity ?? 1)} tangkai
+                </p>
               </div>
             </div>
 
@@ -355,6 +370,54 @@ export function VoicesManager({
                   </button>
                 );
               })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 rounded-xl border border-[#38271F]/12 bg-[#F4EBDD]/55 p-3">
+              <div>
+                <p className="text-xs font-semibold text-[#38271F]">
+                  Jumlah Tangkai Bunga dalam Buket (1–{VOICE_FLOWER_QUANTITY_MAX})
+                </p>
+                <p className="text-[11px] text-[#38271F]/65">
+                  Pilihan asli pengirim otomatis tersimpan dan dapat dilihat di pratinjau kiri atas.
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateCurrent({
+                      flowerQuantity: Math.max(
+                        VOICE_FLOWER_QUANTITY_MIN,
+                        clampFlowerQuantity(current.flowerQuantity ?? 1) - 1
+                      ),
+                    })
+                  }
+                  disabled={clampFlowerQuantity(current.flowerQuantity ?? 1) <= VOICE_FLOWER_QUANTITY_MIN}
+                  aria-label="Kurangi jumlah bunga"
+                  className="min-w-[38px] min-h-[38px] rounded-xl border border-[#38271F]/20 bg-[#FBF6EE] text-sm font-semibold text-[#38271F] disabled:opacity-35 cursor-pointer"
+                >
+                  −
+                </button>
+                <span className="min-w-[36px] text-center font-serif text-base font-semibold text-[#38271F] tabular-nums">
+                  {clampFlowerQuantity(current.flowerQuantity ?? 1)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateCurrent({
+                      flowerQuantity: Math.min(
+                        VOICE_FLOWER_QUANTITY_MAX,
+                        clampFlowerQuantity(current.flowerQuantity ?? 1) + 1
+                      ),
+                    })
+                  }
+                  disabled={clampFlowerQuantity(current.flowerQuantity ?? 1) >= VOICE_FLOWER_QUANTITY_MAX}
+                  aria-label="Tambah jumlah bunga"
+                  className="min-w-[38px] min-h-[38px] rounded-xl border border-[#38271F]/20 bg-[#FBF6EE] text-sm font-semibold text-[#38271F] disabled:opacity-35 cursor-pointer"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 

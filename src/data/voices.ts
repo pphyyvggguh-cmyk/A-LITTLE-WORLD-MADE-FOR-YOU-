@@ -29,23 +29,77 @@ export const VOICE_FLOWER_OPTIONS: VoiceFlowerOption[] = [
   { id: 'orchid', label: 'Anggrek Senja', accentColor: '#9E6E8E' },
 ];
 
+export const VOICE_FLOWER_QUANTITY_MIN = 1;
+export const VOICE_FLOWER_QUANTITY_MAX = 5;
+
+export const VOICE_SUBMISSION_LIMITS = {
+  SENDER_NAME_MIN: 1,
+  SENDER_NAME_MAX: 120,
+  CAPTION_MAX: 300,
+  AUDIO_MAX_BYTES: 15 * 1024 * 1024,
+  AUDIO_STATIC_FALLBACK_MAX_BYTES: 650 * 1024,
+  FLOWER_QUANTITY_MIN: VOICE_FLOWER_QUANTITY_MIN,
+  FLOWER_QUANTITY_MAX: VOICE_FLOWER_QUANTITY_MAX,
+} as const;
+
 export interface VoiceOfLoveEntry {
   id: string;
   name: string;
   flowerType: VoiceFlowerType;
+  flowerQuantity?: number;
   audioUrl: string;
   audioFileName: string;
   photoUrl?: string;
   message?: string;
   order: number;
   permissionConfirmed: boolean;
+  submissionId?: string;
+  source?: 'admin' | 'public';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type VoiceSubmissionStatus = 'pending' | 'approved' | 'rejected';
+
+export interface VoiceSubmissionRecord {
+  id: string;
+  submissionId: string;
+  senderName: string;
+  flowerType: VoiceFlowerType;
+  flowerQuantity: number;
+  caption: string;
+  audioUrl: string;
+  audioStoragePath?: string;
+  audioFileName: string;
+  audioDurationSec?: number;
+  status: VoiceSubmissionStatus;
+  consentConfirmed: boolean;
+  screeningStatus: 'clean' | 'flagged';
+  screeningFlags: string[];
+  publishedVoiceId?: string;
+  source: 'public';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnifiedContributionBatch {
+  id: string;
+  submissionId: string;
+  jarThoughtId: string;
+  voiceSubmissionId: string;
+  contributorLabel: string;
+  consentConfirmed: boolean;
+  screeningStatus: 'clean' | 'flagged';
+  screeningFlags: string[];
+  source: 'public';
   createdAt: string;
   updatedAt: string;
 }
 
 /**
  * Editable Voices of Love dataset.
- * Real MP3 greetings recorded by Wulan's friends can be uploaded from Android via /admin
- * (stored under public/assets/audio/friends/ and linked here).
+ * Real MP3/OGG/WEBM/M4A greetings recorded by Wulan's friends can be approved from Control Room
+ * or uploaded directly via /admin.
  */
 export const DEFAULT_VOICES_OF_LOVE: VoiceOfLoveEntry[] = [];
+

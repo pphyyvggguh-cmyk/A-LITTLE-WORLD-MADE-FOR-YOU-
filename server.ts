@@ -6,21 +6,12 @@ import dotenv from 'dotenv';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
-import { GoogleGenAI, Type } from '@google/genai';
 import {
   sanitizeUploadBasename,
   validateMediaFilenameAndType,
 } from './src/utils/adminContent.ts';
-import {
-  buildMiniOktafSystemInstruction,
-  parseMiniOktafApiResult,
-  sanitizeExpression,
-  sanitizePose,
-  trimChatHistory,
-  VALID_OKTAF_EXPRESSIONS,
-  VALID_OKTAF_POSES,
-  validateUserChatPrompt,
-} from './src/utils/miniOktafChat.ts';
+import { processMiniOktafChatRequest } from './src/server/miniOktafService.ts';
+import { fetchPublicMediaBlob } from './src/server/mediaBlobService.ts';
 import { verifyQuest2AnswerLocal } from './src/utils/quests.ts';
 import {
   buildSubmissionFingerprint,
@@ -29,6 +20,11 @@ import {
   SlidingRateRecord,
   validateJarSubmissionInput,
 } from './src/utils/jarOfThoughts.ts';
+import {
+  evaluateUnifiedContributionSubmission,
+  validatePublicAudioFileMeta,
+} from './src/utils/unifiedContribution.ts';
+import { VOICE_SUBMISSION_LIMITS } from './src/data/voices.ts';
 
 dotenv.config();
 
@@ -139,6 +135,14 @@ const uploadMiddleware = multer({
   },
 });
 
+const publicAudioUploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: VOICE_SUBMISSION_LIMITS.AUDIO_MAX_BYTES,
+    files: 1,
+  },
+});
+
 async function startServer() {
   await fsp.mkdir(UPLOADS_DIR, { recursive: true });
   const firebaseCfg = loadFirebaseConfig();
@@ -151,7 +155,23 @@ async function startServer() {
   app.use('/assets', express.static(path.join(PUBLIC_DIR, 'assets')));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, mode: 'firebase', uploadReady: true });
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+    const aiConfigured = Boolean(apiKey && apiKey !== 'MY_GEMINI_API_KEY');
+    res.json({ ok: true, mode: 'firebase', uploadReady: true, aiConfigured });
+  });
+
+  app.get('/api/media', async (req: Request, res: Response) => {
+    const id = typeof req.query.id === 'string' ? req.query.id : '';
+    const result = await fetchPublicMediaBlob({ id });
+    if (result.status !== 200 || !result.buffer) {
+      res.set('Cache-Control', 'no-store');
+      res.status(result.status).json({ ok: false, error: result.error || 'Media unavailable.' });
+      return;
+    }
+    res.set('Content-Type', result.mimeType);
+    res.set('Cache-Control', result.cacheControl || 'public, max-age=31536000, immutable');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.status(200).send(result.buffer);
   });
 
   app.get('/api/time', (_req, res) => {
@@ -297,6 +317,203 @@ async function startServer() {
     res.json({ ok: true, serverTimeMs: Date.now() });
   });
 
+  // --- Unified Contribution (/leave-a-thought): Public Audio Upload & Text Screening ---
+  const audioUploadRateMap = new Map<string, number[]>();
+
+  app.post('/api/contributions/upload-audio', (req: Request, res: Response, next: NextFunction) => {
+    publicAudioUploadMiddleware.single('file')(req, res, (err: unknown) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          res.status(413).json({
+            ok: false,
+            error: 'Ukuran rekaman audio maksimal 15 MB agar tetap cepat diputar.',
+          });
+          return;
+        }
+        res.status(400).json({
+          ok: false,
+          error: err instanceof Error ? err.message : 'Gagal membaca file audio.',
+        });
+        return;
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
+    try {
+      const nowMs = Date.now();
+      const ipKey = getClientIpKey(req);
+      const recentUploads = (audioUploadRateMap.get(ipKey) || []).filter(
+        (ts) => nowMs - ts < 15 * 60 * 1000
+      );
+      if (recentUploads.length >= 10) {
+        res.status(429).json({
+          ok: false,
+          error: 'Terlalu banyak unggahan audio beruntun. Tunggu beberapa menit sebelum mencoba lagi.',
+        });
+        return;
+      }
+
+      const file = req.file;
+      if (!file || !file.buffer || file.size <= 0) {
+        res.status(400).json({
+          ok: false,
+          error: 'File audio tidak ditemukan atau kosong.',
+        });
+        return;
+      }
+
+      const check = validatePublicAudioFileMeta(
+        file.originalname || 'voice-note.webm',
+        file.mimetype || '',
+        file.size
+      );
+      if (!check.ok) {
+        res.status(400).json({ ok: false, error: check.error });
+        return;
+      }
+
+      const stamp = nowMs.toString(36);
+      const rand = crypto.randomBytes(6).toString('hex');
+      const storedFilename = `voice-${stamp}-${rand}${check.ext}`;
+      const targetDir = path.resolve(UPLOADS_DIR, 'voices-pending');
+      await fsp.mkdir(targetDir, { recursive: true });
+
+      const targetFile = path.resolve(targetDir, storedFilename);
+      if (!targetFile.startsWith(targetDir + path.sep)) {
+        res.status(400).json({ ok: false, error: 'Nama file audio tidak valid.' });
+        return;
+      }
+
+      await fsp.writeFile(targetFile, file.buffer);
+      recentUploads.push(nowMs);
+      audioUploadRateMap.set(ipKey, recentUploads);
+
+      const publicUrl = `/assets/uploads/voices-pending/${storedFilename}`;
+      const storagePath = `app-server/uploads/voices-pending/${storedFilename}`;
+
+      res.status(201).json({
+        ok: true,
+        url: publicUrl,
+        storagePath,
+        filename: storedFilename,
+        sizeBytes: file.size,
+      });
+    } catch (err) {
+      res.status(500).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'Gagal menyimpan file audio kontribusi.',
+      });
+    }
+  });
+
+  app.post('/api/contributions/screen', (req: Request, res: Response) => {
+    const nowMs = Date.now();
+    const consentRaw = req.body?.consent;
+    const consent = consentRaw === 'YA' || consentRaw === 'TIDAK' ? consentRaw : null;
+
+    const decision = evaluateUnifiedContributionSubmission({
+      jarDraft: {
+        senderInitial: String(req.body?.jarDraft?.senderInitial ?? ''),
+        message: String(req.body?.jarDraft?.message ?? ''),
+        paperStyle: String(req.body?.jarDraft?.paperStyle ?? ''),
+        isAnonymous: Boolean(req.body?.jarDraft?.isAnonymous),
+      },
+      voiceDraft: {
+        senderName: String(req.body?.voiceDraft?.senderName ?? ''),
+        flowerType: String(req.body?.voiceDraft?.flowerType ?? ''),
+        flowerQuantity: Number(req.body?.voiceDraft?.flowerQuantity ?? 1),
+        caption: String(req.body?.voiceDraft?.caption ?? ''),
+        hasAudio: Boolean(req.body?.voiceDraft?.hasAudio),
+        audioFileName: String(req.body?.voiceDraft?.audioFileName ?? 'voice-note.webm'),
+        audioDurationSec: Number(req.body?.voiceDraft?.audioDurationSec ?? 0),
+      },
+      consent,
+    });
+
+    if (!decision.shouldSubmit) {
+      res.status(decision.reason === 'declined' ? 200 : 400).json({
+        ok: false,
+        reason: decision.reason,
+        section: decision.section,
+        field: decision.field,
+        error: decision.error || 'Kontribusi tidak dikirim.',
+      });
+      return;
+    }
+
+    const ipKey = getClientIpKey(req);
+    const fingerprint = buildSubmissionFingerprint(
+      `${decision.jarData.senderInitial}|${decision.voiceData.senderName}`,
+      `${decision.jarData.message}|${decision.voiceData.caption}`,
+      decision.jarData.isAnonymous
+    );
+    const rateDecision = evaluateSubmissionRateLimit(
+      jarRateLimitStore.get(ipKey),
+      fingerprint,
+      nowMs
+    );
+
+    if (!rateDecision.ok) {
+      res.status(429).json({
+        ok: false,
+        code: rateDecision.code,
+        retryAfterSec: rateDecision.retryAfterSec,
+        error: rateDecision.error,
+      });
+      return;
+    }
+
+    jarRateLimitStore.set(ipKey, rateDecision.nextRecord);
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      ok: true,
+      jarData: decision.jarData,
+      voiceData: decision.voiceData,
+      screening: decision.screening,
+      serverTimeMs: nowMs,
+    });
+  });
+
+  app.delete('/api/contributions/audio', async (req: Request, res: Response) => {
+    try {
+      const verified = await verifyFirebaseBearerToken(
+        req.headers.authorization,
+        firebaseCfg.apiKey
+      );
+      if (!verified || !verified.emailVerified || verified.email !== PRIMARY_ADMIN_EMAIL) {
+        res.status(403).json({
+          ok: false,
+          error: 'Hanya administrator terverifikasi yang dapat menghapus audio kontribusi.',
+        });
+        return;
+      }
+
+      const rawStoragePath = String(
+        req.body?.storagePath || req.query?.storagePath || ''
+      ).trim();
+      if (!rawStoragePath.startsWith('app-server/uploads/voices-pending/')) {
+        res.json({ ok: true, skipped: true });
+        return;
+      }
+
+      const relative = rawStoragePath.slice('app-server/uploads/'.length);
+      const targetFile = path.resolve(UPLOADS_DIR, relative);
+      const allowedRoot = path.resolve(UPLOADS_DIR, 'voices-pending');
+      if (!targetFile.startsWith(allowedRoot + path.sep)) {
+        res.status(400).json({ ok: false, error: 'Path audio tidak valid.' });
+        return;
+      }
+
+      await fsp.unlink(targetFile).catch(() => {});
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'Gagal menghapus file audio kontribusi.',
+      });
+    }
+  });
+
   app.post('/api/quests/validate', (req: Request, res: Response) => {
     const stepIndex = Number(req.body?.stepIndex);
     const answer = String(req.body?.answer ?? '');
@@ -314,122 +531,12 @@ async function startServer() {
   });
 
   app.post('/api/mini-oktaf/chat', async (req: Request, res: Response) => {
-    try {
-      const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-      if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-        res.status(503).json({
-          ok: false,
-          code: 'AI_NOT_CONFIGURED',
-          error:
-            'Fitur ngobrol AI Mini Oktaf belum aktif karena GEMINI_API_KEY belum diatur di server.',
-        });
-        return;
-      }
-
-      const rawMessages = Array.isArray(req.body?.messages) ? req.body.messages : [];
-      const history = trimChatHistory(rawMessages);
-      const lastTurn = history[history.length - 1];
-      if (!lastTurn || lastTurn.role !== 'user') {
-        res.status(400).json({
-          ok: false,
-          code: 'INVALID_PROMPT',
-          error: 'Kirim pesan teks terlebih dahulu untuk mengobrol dengan Mini Oktaf.',
-        });
-        return;
-      }
-
-      const promptCheck = validateUserChatPrompt(lastTurn.text);
-      if (!promptCheck.ok) {
-        res.status(400).json({
-          ok: false,
-          code: 'INVALID_PROMPT',
-          error: promptCheck.error,
-        });
-        return;
-      }
-
-      const currentChapter = String(req.body?.currentChapter || 'hub').slice(0, 40);
-      const flowerCount = Math.max(0, Math.min(7, Number(req.body?.collectedFlowerCount || 0) || 0));
-      const collectedFlowerIds = Array.isArray(req.body?.collectedFlowerIds)
-        ? req.body.collectedFlowerIds.filter((x: unknown): x is string => typeof x === 'string').slice(0, 7)
-        : [];
-      const quest2Step = Math.max(0, Math.min(3, Number(req.body?.quest2Step || 0) || 0));
-      const quest2Completed = Boolean(req.body?.quest2Completed) || quest2Step >= 3;
-      const collectedPolaroidIds = Array.isArray(req.body?.collectedPolaroidIds)
-        ? req.body.collectedPolaroidIds.filter((x: unknown): x is string => typeof x === 'string').slice(0, 5)
-        : [];
-      const collectedPolaroidCount = Math.max(
-        collectedPolaroidIds.length,
-        Math.min(5, Number(req.body?.collectedPolaroidCount || 0) || 0)
-      );
-
-      const systemInstruction = buildMiniOktafSystemInstruction(
-        {
-          currentChapter,
-          collectedFlowerCount: flowerCount,
-          collectedFlowerIds,
-          quest2Step,
-          quest2Completed,
-          collectedPolaroidCount,
-          collectedPolaroidIds,
-        },
-        history
-      );
-
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
-      });
-      const contents = history.map((turn) => ({
-        role: turn.role === 'assistant' ? ('model' as const) : ('user' as const),
-        parts: [{ text: turn.text }],
-      }));
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
-        contents,
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              reply: {
-                type: Type.STRING,
-                description: 'Balasan hangat Mini Oktaf dalam bahasa Indonesia yang natural.',
-              },
-              pose: {
-                type: Type.STRING,
-                enum: Array.from(VALID_OKTAF_POSES),
-              },
-              expression: {
-                type: Type.STRING,
-                enum: Array.from(VALID_OKTAF_EXPRESSIONS),
-              },
-            },
-            required: ['reply', 'pose', 'expression'],
-          },
-        },
-      });
-
-      const rawText = response.text || '';
-      const parsed = parseMiniOktafApiResult(rawText);
-
-      res.json({
-        ok: true,
-        reply: parsed.reply,
-        pose: sanitizePose(parsed.pose, 'waving'),
-        expression: sanitizeExpression(parsed.expression, 'happy'),
-      });
-    } catch (err) {
-      console.error('Mini Oktaf Gemini error:', err);
-      res.status(500).json({
-        ok: false,
-        code: 'AI_REQUEST_FAILED',
-        error:
-          'Mini Oktaf lagi agak lemot koneksinya sebentar. Coba kirim lagi dalam beberapa detik ya.',
-      });
-    }
+    const result = await processMiniOktafChatRequest({
+      apiKey: process.env.GEMINI_API_KEY,
+      body: req.body as Record<string, unknown>,
+    });
+    res.set('Cache-Control', 'no-store');
+    res.status(result.status).json(result.json);
   });
 
   app.post('/api/upload', (req: Request, res: Response, next: NextFunction) => {

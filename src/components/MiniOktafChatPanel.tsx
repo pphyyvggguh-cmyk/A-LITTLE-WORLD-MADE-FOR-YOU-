@@ -51,6 +51,7 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFailedText, setLastFailedText] = useState<string | null>(null);
 
   const listEndRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +82,7 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
     STORYBOOK_CHAPTERS.find((c) => c.id === currentSection)?.title ?? 'Dunia Kecil';
   const exprSrc = OKTAF_EXPRESSION_PATHS[oktaf.expression] ?? OKTAF_EXPRESSION_PATHS.happy;
 
-  const sendMessage = async (rawText: string) => {
+  const sendMessage = async (rawText: string, options?: { isRetry?: boolean }) => {
     if (sending) return;
     const check = validateUserChatPrompt(rawText);
     if (!check.ok) {
@@ -89,17 +90,24 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
       return;
     }
 
-    const userMsg: MiniOktafChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      text: check.text,
-      createdAt: new Date().toISOString(),
-    };
+    let nextHistory = messages;
+    const lastExisting = messages[messages.length - 1];
+    if (options?.isRetry && lastExisting?.role === 'user' && lastExisting.text === check.text) {
+      nextHistory = messages;
+    } else {
+      const userMsg: MiniOktafChatMessage = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        text: check.text,
+        createdAt: new Date().toISOString(),
+      };
+      nextHistory = [...messages, userMsg];
+      setMessages(nextHistory);
+      setInput('');
+    }
 
-    const nextHistory = [...messages, userMsg];
-    setMessages(nextHistory);
-    setInput('');
     setError(null);
+    setLastFailedText(null);
     setSending(true);
 
     try {
@@ -126,6 +134,7 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
       setMessages((prev) => [...prev, botMsg]);
       setOktafDialogue(reply.pose, reply.expression, reply.reply);
     } catch (err) {
+      setLastFailedText(check.text);
       setError(
         formatSafeUiError(
           err,
@@ -146,6 +155,7 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
   const handleClearChat = () => {
     setMessages([]);
     setError(null);
+    setLastFailedText(null);
     try {
       window.sessionStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
     } catch {
@@ -266,9 +276,20 @@ export function MiniOktafChatPanel({ open, onClose }: MiniOktafChatPanelProps) {
             {error && (
               <div
                 role="alert"
-                className="rounded-xl bg-[#E8BFC5]/32 border border-[#A6533B]/30 px-3 py-2 text-[11px] text-[#743D4A] leading-snug"
+                className="rounded-xl bg-[#E8BFC5]/32 border border-[#A6533B]/30 px-3 py-2 text-[11px] text-[#743D4A] leading-snug space-y-1.5"
               >
-                {error}
+                <p>{error}</p>
+                {lastFailedText && (
+                  <button
+                    type="button"
+                    disabled={sending}
+                    onClick={() => void sendMessage(lastFailedText, { isRetry: true })}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#A6533B] text-[#FFFDFC] text-[10px] font-semibold hover:bg-[#8e442f] disabled:opacity-50 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Coba Lagi</span>
+                  </button>
+                )}
               </div>
             )}
 

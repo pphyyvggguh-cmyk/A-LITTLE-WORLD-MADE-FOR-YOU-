@@ -60,7 +60,17 @@ import {
   validateMediaFilenameAndType,
   validateStoryBookPages,
 } from './adminContent';
-import { executeSharedUpload } from './uploadTransport';
+import {
+  executeSharedUpload,
+  type SharedUploadResponse,
+  type UploadScope,
+} from './uploadTransport';
+import {
+  arrayBufferToBase64,
+  MAX_FIRESTORE_BLOB_BYTES,
+  normalizeBlobImageMime,
+  prepareImageForFirestoreBlob,
+} from './imageOptimizer';
 import {
   extractYouTubeVideoId,
   getYouTubeThumbnailUrl,
@@ -95,6 +105,9 @@ import {
   sortSecretNotes,
   validateSecretNoteInput,
 } from './secretNotes';
+import { DEFAULT_HOMEPAGE_CONFIG, type HomepageConfig } from '../data/homepage';
+import { normalizeHomepageConfig, validateHomepageConfig } from './homepageContent';
+import { clampFlowerQuantity } from './unifiedContribution';
 import { formatSafeUiError } from './safeError';
 
 export interface MediaAssetItem {
@@ -179,10 +192,11 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     vinylConfig: structuredClone(DEFAULT_VINYL_CONFIG),
     vinylPlaylist: structuredClone(DEFAULT_VINYL_PLAYLIST),
     heartGallery: structuredClone(DEFAULT_HEART_GALLERY_PHOTOS),
+    homepage: structuredClone(DEFAULT_HOMEPAGE_CONFIG),
     updatedAt: '',
   };
 
-  const sectionIds = ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl', 'heartGallery'] as const;
+  const sectionIds = ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl', 'heartGallery', 'homepage'] as const;
   const sectionSnaps = await Promise.all(
     sectionIds.map((id) => getDoc(doc(db, 'siteContent', id)).catch(() => null))
   );
@@ -192,7 +206,7 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     if (iso && (!latestIso || iso > latestIso)) latestIso = iso;
   };
 
-  const [storySnap, worldSnap, lettersSnap, videoSnap, oktafSnap, vinylSnap, heartGalleryMetaSnap] =
+  const [storySnap, worldSnap, lettersSnap, videoSnap, oktafSnap, vinylSnap, heartGalleryMetaSnap, homepageSnap] =
     sectionSnaps;
   let secretNotesSeededInDb = false;
 
@@ -281,6 +295,15 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
     trackLatest(timestampToIso(data?.updatedAt));
   }
 
+  if (homepageSnap?.exists()) {
+    const data = homepageSnap.data();
+    const rawHome = data?.payload?.homepage as Partial<HomepageConfig> | undefined;
+    if (rawHome) {
+      defaults.homepage = normalizeHomepageConfig(rawHome);
+    }
+    trackLatest(timestampToIso(data?.updatedAt));
+  }
+
   try {
     const voicesQuery = adminView
       ? collection(db, 'voices')
@@ -294,12 +317,15 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
         id: raw.id || d.id,
         name: raw.name || '',
         flowerType: raw.flowerType || 'sakura',
+        flowerQuantity: clampFlowerQuantity(raw.flowerQuantity ?? 1),
         audioUrl: raw.audioUrl || '',
         audioFileName: raw.audioFileName || '',
         photoUrl: raw.photoUrl || '',
         message: raw.message || '',
         order: typeof raw.order === 'number' ? raw.order : 1,
         permissionConfirmed: Boolean(raw.permissionConfirmed),
+        submissionId: raw.submissionId ? String(raw.submissionId) : undefined,
+        source: raw.source === 'public' ? 'public' : 'admin',
         createdAt: timestampToIso(raw.createdAt),
         updatedAt: updated,
       };
@@ -410,7 +436,7 @@ export async function fetchSiteContent(adminView = false): Promise<SiteContentPa
 }
 
 async function upsertSiteSection(
-  sectionId: 'story' | 'world' | 'letters' | 'video' | 'miniOktaf' | 'vinyl',
+  sectionId: 'story' | 'world' | 'letters' | 'video' | 'miniOktaf' | 'vinyl' | 'homepage',
   payload: Record<string, unknown>
 ): Promise<SiteContentPayload> {
   const user = requireVerifiedAdminUser();
@@ -492,6 +518,16 @@ export async function saveVinylConfig(
   return upsertSiteSection('vinyl', { vinylConfig });
 }
 
+export async function saveHomepageConfig(
+  homepage: HomepageConfig
+): Promise<SiteContentPayload> {
+  const check = validateHomepageConfig(homepage);
+  if (!check.ok) {
+    throw new Error(check.error);
+  }
+  return upsertSiteSection('homepage', { homepage: check.data });
+}
+
 export async function saveVoicesOfLove(voices: VoiceOfLoveEntry[]): Promise<SiteContentPayload> {
   const user = requireVerifiedAdminUser();
   const normalized = normalizeVoicesOrder(voices);
@@ -518,11 +554,13 @@ export async function saveVoicesOfLove(voices: VoiceOfLoveEntry[]): Promise<Site
       const docId = normalizeDocId(entry.id);
       nextIds.add(docId);
       const docRef = doc(db, 'voices', docId);
+      const qty = clampFlowerQuantity(entry.flowerQuantity ?? 1);
       if (existingIds.has(docId)) {
         batch.update(docRef, {
           name: entry.name.trim().slice(0, 120),
           flowerType: entry.flowerType,
-          audioUrl: entry.audioUrl.trim().slice(0, 1000),
+          flowerQuantity: qty,
+          audioUrl: entry.audioUrl.trim().slice(0, 950000),
           audioFileName: (entry.audioFileName || '').trim().slice(0, 200),
           photoUrl: (entry.photoUrl || '').trim().slice(0, 1000),
           message: (entry.message || '').trim().slice(0, 1500),
@@ -535,12 +573,15 @@ export async function saveVoicesOfLove(voices: VoiceOfLoveEntry[]): Promise<Site
           id: docId,
           name: entry.name.trim().slice(0, 120),
           flowerType: entry.flowerType,
-          audioUrl: entry.audioUrl.trim().slice(0, 1000),
+          flowerQuantity: qty,
+          audioUrl: entry.audioUrl.trim().slice(0, 950000),
           audioFileName: (entry.audioFileName || '').trim().slice(0, 200),
           photoUrl: (entry.photoUrl || '').trim().slice(0, 1000),
           message: (entry.message || '').trim().slice(0, 1500),
           order: entry.order,
           permissionConfirmed: entry.permissionConfirmed,
+          source: entry.source === 'public' ? 'public' : 'admin',
+          ...(entry.submissionId ? { submissionId: entry.submissionId } : {}),
           ownerUid: user.uid,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -698,6 +739,90 @@ export async function fetchMediaLibrary(): Promise<MediaAssetItem[]> {
   return [...cloudAssets, ...bundledWithUsage];
 }
 
+function extractBlobIdFromStoragePath(storagePath: string): string | null {
+  const clean = String(storagePath || '').trim();
+  if (!clean.startsWith('firestore-media/')) return null;
+  const parts = clean.split('/');
+  const last = parts[parts.length - 1] || '';
+  return /^[a-zA-Z0-9_-]{1,128}$/.test(last) ? last : null;
+}
+
+function createFirestoreBlobUploader(uid: string) {
+  return async ({
+    file,
+    scope,
+    onProgress,
+  }: {
+    file: File;
+    scope: UploadScope;
+    folderOrTargetId: string;
+    onProgress: (percent: number) => void;
+  }): Promise<SharedUploadResponse | null> => {
+    const imgMime = normalizeBlobImageMime(file.type, file.name);
+    let base64 = '';
+    let mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'audio/mpeg' | 'audio/ogg';
+    let sizeBytes = 0;
+    let filename = (file.name || 'upload').slice(0, 200);
+
+    if (imgMime) {
+      onProgress(15);
+      const prepared = await prepareImageForFirestoreBlob(file);
+      onProgress(55);
+      base64 = prepared.base64;
+      mimeType = prepared.mimeType;
+      sizeBytes = prepared.sizeBytes;
+      filename = prepared.filename.slice(0, 200);
+    } else {
+      const lowerMime = (file.type || '').toLowerCase();
+      const lowerName = (file.name || '').toLowerCase();
+      const audioMime =
+        lowerMime.includes('ogg') || lowerName.endsWith('.ogg')
+          ? 'audio/ogg'
+          : lowerMime.includes('mpeg') || lowerMime.includes('mp3') || lowerName.endsWith('.mp3')
+            ? 'audio/mpeg'
+            : null;
+      if (!audioMime || file.size > MAX_FIRESTORE_BLOB_BYTES) {
+        return null;
+      }
+      onProgress(30);
+      const buf = await file.arrayBuffer();
+      base64 = arrayBufferToBase64(buf);
+      mimeType = audioMime;
+      sizeBytes = buf.byteLength;
+    }
+
+    const stamp = Date.now().toString(36);
+    const rand = Math.random().toString(36).slice(2, 6);
+    const blobId = normalizeDocId(`blob-${stamp}-${rand}`);
+    const isPublic = scope === 'site-media';
+
+    try {
+      await setDoc(doc(db, 'mediaBlobs', blobId), {
+        id: blobId,
+        scope,
+        isPublic,
+        mimeType,
+        dataBase64: base64,
+        sizeBytes,
+        filename,
+        uploaderUid: uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `mediaBlobs/${blobId}`);
+    }
+
+    onProgress(100);
+    return {
+      url: isPublic ? `/api/media?id=${blobId}` : `/api/media?id=${blobId}&private=1`,
+      storagePath: `firestore-media/${scope}/${blobId}`,
+      filename,
+      provider: 'firestore-media',
+    };
+  };
+}
+
 export async function uploadMediaFile(
   file: File,
   category: 'friends-audio' | 'images' | 'audio' | 'videos' | 'auto',
@@ -738,6 +863,7 @@ export async function uploadMediaFile(
   let storedFilename = `${safeBase}-${stamp}${check.ext}`;
   let targetPath = `site-media/${resolvedCategory}/${storedFilename}`;
   let isReplacingExisting = false;
+  let oldFirestoreBlobIdToCleanup: string | null = null;
 
   if (replaceUrl) {
     try {
@@ -745,11 +871,17 @@ export async function uploadMediaFile(
       const matched = snap.docs.find((d) => d.data().url === replaceUrl);
       if (matched) {
         assetId = matched.id;
+        isReplacingExisting = true;
         const existingPath = String(matched.data().storagePath || '');
-        if (existingPath && existingPath.toLowerCase().endsWith(check.ext)) {
+        oldFirestoreBlobIdToCleanup = extractBlobIdFromStoragePath(existingPath);
+        if (
+          existingPath &&
+          !existingPath.startsWith('firestore-media/') &&
+          !existingPath.startsWith('app-server/') &&
+          existingPath.toLowerCase().endsWith(check.ext)
+        ) {
           targetPath = existingPath;
           storedFilename = String(matched.data().filename || storedFilename);
-          isReplacingExisting = true;
         }
       }
     } catch {
@@ -768,6 +900,7 @@ export async function uploadMediaFile(
     storage,
     storageBucket: storage.app.options.storageBucket,
     onProgress,
+    firestoreBlobUploader: createFirestoreBlobUploader(user.uid),
   });
 
   const downloadUrl = uploaded.url;
@@ -800,6 +933,12 @@ export async function uploadMediaFile(
         updatedAt: serverTimestamp(),
       });
     }
+    if (
+      oldFirestoreBlobIdToCleanup &&
+      oldFirestoreBlobIdToCleanup !== extractBlobIdFromStoragePath(finalStoragePath)
+    ) {
+      await deleteDoc(doc(db, 'mediaBlobs', oldFirestoreBlobIdToCleanup)).catch(() => {});
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `mediaAssets/${assetId}`);
   }
@@ -823,7 +962,10 @@ export async function deleteMediaFile(url: string): Promise<void> {
       throw new Error('Hanya file yang diunggah melalui Media Library yang dapat dihapus.');
     }
     const storagePath = String(matched.data().storagePath || '');
-    if (storagePath.startsWith('app-server/uploads/')) {
+    const blobId = extractBlobIdFromStoragePath(storagePath);
+    if (blobId) {
+      await deleteDoc(doc(db, 'mediaBlobs', blobId)).catch(() => {});
+    } else if (storagePath.startsWith('app-server/uploads/')) {
       const idToken = await user.getIdToken();
       await fetch(`/api/upload?storagePath=${encodeURIComponent(storagePath)}`, {
         method: 'DELETE',
@@ -1267,6 +1409,7 @@ export async function uploadWishlistPhoto(
     storage,
     storageBucket: storage.app.options.storageBucket,
     onProgress,
+    firestoreBlobUploader: createFirestoreBlobUploader(user.uid),
   });
   return uploaded.url;
 }
@@ -1624,6 +1767,7 @@ export async function uploadPostcardPhoto(
     storage,
     storageBucket: storage.app.options.storageBucket,
     onProgress,
+    firestoreBlobUploader: createFirestoreBlobUploader(user.uid),
   });
   return uploaded.url;
 }

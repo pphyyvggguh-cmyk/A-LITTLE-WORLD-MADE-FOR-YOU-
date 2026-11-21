@@ -105,7 +105,7 @@
       "properties": {
         "sectionId": {
           "type": "string",
-          "enum": ["story", "world", "letters", "video", "miniOktaf", "vinyl", "jar", "heartGallery"],
+          "enum": ["story", "world", "letters", "video", "miniOktaf", "vinyl", "jar", "heartGallery", "homepage"],
           "description": "Section document key."
         },
         "payload": {
@@ -165,11 +165,15 @@
           ],
           "description": "Assigned botanical flower illustration identifier."
         },
+        "flowerQuantity": {
+          "type": "number",
+          "description": "Contributor-selected quantity of flowers (1 to 5)."
+        },
         "audioUrl": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 1000,
-          "description": "Firebase Storage or public asset URL for the MP3/OGG recording."
+          "maxLength": 950000,
+          "description": "Audio storage or public asset URL for the friend recording."
         },
         "audioFileName": {
           "type": "string",
@@ -184,7 +188,7 @@
         "message": {
           "type": "string",
           "maxLength": 1500,
-          "description": "Optional short written note."
+          "description": "Optional short written note or caption."
         },
         "order": {
           "type": "number",
@@ -194,11 +198,21 @@
           "type": "boolean",
           "description": "Admin confirmation that real recording consent is verified."
         },
+        "submissionId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Linked unified contribution submission ID when originated from /leave-a-thought."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["admin", "public"],
+          "description": "Creation origin."
+        },
         "ownerUid": {
           "type": "string",
           "minLength": 1,
           "maxLength": 128,
-          "description": "UID of the administrator who created the entry."
+          "description": "UID of the administrator who created or approved the entry."
         },
         "createdAt": {
           "type": "string",
@@ -820,6 +834,24 @@
           "maxLength": 128,
           "description": "Admin UID when created manually by admin."
         },
+        "submissionId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Linked unified contribution submission ID."
+        },
+        "consentConfirmed": {
+          "type": "boolean",
+          "description": "Contributor explicit YA consent confirmation."
+        },
+        "screeningStatus": {
+          "type": "string",
+          "enum": ["clean", "flagged"],
+          "description": "Automated text screening outcome."
+        },
+        "screeningFlags": {
+          "type": "array",
+          "description": "Optional bounded list of screening flags for admin review."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -1030,6 +1062,250 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "VoiceSubmission": {
+      "title": "VoiceSubmission",
+      "description": "Pending public Voices of Love contribution awaiting mandatory admin review (strictly admin-only reads).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "submissionId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "senderName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "flowerType": {
+          "type": "string",
+          "enum": [
+            "sakura",
+            "sunflower",
+            "daisy",
+            "lavender",
+            "rose",
+            "forgetmenot",
+            "tulip",
+            "lily",
+            "peony",
+            "orchid"
+          ]
+        },
+        "flowerQuantity": {
+          "type": "number"
+        },
+        "caption": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "audioUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 950000
+        },
+        "audioStoragePath": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "audioFileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "audioDurationSec": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "consentConfirmed": {
+          "type": "boolean"
+        },
+        "screeningStatus": {
+          "type": "string",
+          "enum": ["clean", "flagged"]
+        },
+        "screeningFlags": {
+          "type": "array"
+        },
+        "publishedVoiceId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "source": {
+          "type": "string",
+          "enum": ["public"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "submissionId",
+        "senderName",
+        "flowerType",
+        "flowerQuantity",
+        "caption",
+        "audioUrl",
+        "audioFileName",
+        "audioDurationSec",
+        "status",
+        "consentConfirmed",
+        "screeningStatus",
+        "screeningFlags",
+        "source",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ContributionBatch": {
+      "title": "ContributionBatch",
+      "description": "Atomic unified contribution record linking a Jar thought and a Voice submission from /leave-a-thought (admin-only reads).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "submissionId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "jarThoughtId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "voiceSubmissionId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "contributorLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "consentConfirmed": {
+          "type": "boolean"
+        },
+        "screeningStatus": {
+          "type": "string",
+          "enum": ["clean", "flagged"]
+        },
+        "screeningFlags": {
+          "type": "array"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["public"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "submissionId",
+        "jarThoughtId",
+        "voiceSubmissionId",
+        "contributorLabel",
+        "consentConfirmed",
+        "screeningStatus",
+        "screeningFlags",
+        "source",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MediaBlob": {
+      "title": "MediaBlob",
+      "description": "Persistent cloud-stored compressed image or compact media payload in Firestore served cleanly across Vercel deployments and devices.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["site-media", "wishlist-media", "postcard-media"]
+        },
+        "isPublic": {
+          "type": "boolean"
+        },
+        "mimeType": {
+          "type": "string",
+          "enum": ["image/jpeg", "image/png", "image/webp", "audio/mpeg", "audio/ogg"]
+        },
+        "dataBase64": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 920000
+        },
+        "sizeBytes": {
+          "type": "number"
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "uploaderUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "scope",
+        "isPublic",
+        "mimeType",
+        "dataBase64",
+        "sizeBytes",
+        "filename",
+        "uploaderUid",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -1116,6 +1392,24 @@
         "$ref": "#/entities/HeartGalleryPhoto"
       },
       "description": "Stores curated photos, captions, and decorative themes for Quest 3's Our Little Heart Gallery."
+    },
+    "/voiceSubmissions/{submissionId}": {
+      "schema": {
+        "$ref": "#/entities/VoiceSubmission"
+      },
+      "description": "Stores pending public Voices of Love contributions awaiting admin moderation (strictly admin-only reads)."
+    },
+    "/contributionBatches/{batchId}": {
+      "schema": {
+        "$ref": "#/entities/ContributionBatch"
+      },
+      "description": "Stores atomic linkage between unified /leave-a-thought Jar and Voice contributions (strictly admin-only reads)."
+    },
+    "/mediaBlobs/{blobId}": {
+      "schema": {
+        "$ref": "#/entities/MediaBlob"
+      },
+      "description": "Stores persistent compressed image payloads in Firestore for cross-device rendering via /api/media?id={blobId}."
     }
   }
 }

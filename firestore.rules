@@ -124,7 +124,7 @@ service cloud.firestore {
     }
 
     function isValidSiteContentSection(data, sectionId) {
-      return sectionId in ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl', 'jar', 'heartGallery']
+      return sectionId in ['story', 'world', 'letters', 'video', 'miniOktaf', 'vinyl', 'jar', 'heartGallery', 'homepage']
         && data.keys().hasAll(['sectionId', 'payload', 'updatedBy', 'createdAt', 'updatedAt'])
         && data.keys().hasOnly(['sectionId', 'payload', 'updatedBy', 'createdAt', 'updatedAt'])
         && data.sectionId == sectionId
@@ -151,12 +151,15 @@ service cloud.firestore {
           'id',
           'name',
           'flowerType',
+          'flowerQuantity',
           'audioUrl',
           'audioFileName',
           'photoUrl',
           'message',
           'order',
           'permissionConfirmed',
+          'submissionId',
+          'source',
           'ownerUid',
           'createdAt',
           'updatedAt'
@@ -175,12 +178,15 @@ service cloud.firestore {
           'peony',
           'orchid'
         ]
-        && data.audioUrl is string && data.audioUrl.size() >= 1 && data.audioUrl.size() <= 1000
+        && (!('flowerQuantity' in data) || (data.flowerQuantity is number && data.flowerQuantity >= 1 && data.flowerQuantity <= 5))
+        && data.audioUrl is string && data.audioUrl.size() >= 1 && data.audioUrl.size() <= 950000
         && data.audioFileName is string && data.audioFileName.size() <= 200
         && (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 1000))
         && (!('message' in data) || (data.message is string && data.message.size() <= 1500))
         && data.order is number && data.order >= 1 && data.order <= 1000
         && data.permissionConfirmed is bool
+        && (!('submissionId' in data) || (data.submissionId is string && data.submissionId.size() <= 128))
+        && (!('source' in data) || data.source in ['admin', 'public'])
         && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
@@ -497,6 +503,10 @@ service cloud.firestore {
           'openedAt',
           'source',
           'ownerUid',
+          'submissionId',
+          'consentConfirmed',
+          'screeningStatus',
+          'screeningFlags',
           'createdAt',
           'updatedAt'
         ])
@@ -510,6 +520,10 @@ service cloud.firestore {
         && (!('openedAt' in data) || data.openedAt is timestamp)
         && data.source in ['public', 'admin']
         && (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid.size() <= 128))
+        && (!('submissionId' in data) || (data.submissionId is string && data.submissionId.size() <= 128))
+        && (!('consentConfirmed' in data) || data.consentConfirmed is bool)
+        && (!('screeningStatus' in data) || data.screeningStatus in ['clean', 'flagged'])
+        && (!('screeningFlags' in data) || (data.screeningFlags is list && data.screeningFlags.size() <= 12))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
@@ -611,6 +625,155 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidVoiceSubmission(data, submissionId) {
+      return data.keys().hasAll([
+          'id',
+          'submissionId',
+          'senderName',
+          'flowerType',
+          'flowerQuantity',
+          'caption',
+          'audioUrl',
+          'audioFileName',
+          'audioDurationSec',
+          'status',
+          'consentConfirmed',
+          'screeningStatus',
+          'screeningFlags',
+          'source',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'submissionId',
+          'senderName',
+          'flowerType',
+          'flowerQuantity',
+          'caption',
+          'audioUrl',
+          'audioStoragePath',
+          'audioFileName',
+          'audioDurationSec',
+          'status',
+          'consentConfirmed',
+          'screeningStatus',
+          'screeningFlags',
+          'publishedVoiceId',
+          'source',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == submissionId && isValidId(data.id)
+        && data.submissionId is string && data.submissionId == submissionId && isValidId(data.submissionId)
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 120
+        && !(data.senderName.lower() in ['anonim', 'anonymous', 'someone special'])
+        && data.flowerType in [
+          'sakura',
+          'sunflower',
+          'daisy',
+          'lavender',
+          'rose',
+          'forgetmenot',
+          'tulip',
+          'lily',
+          'peony',
+          'orchid'
+        ]
+        && data.flowerQuantity is number && data.flowerQuantity >= 1 && data.flowerQuantity <= 5
+        && data.caption is string && data.caption.size() <= 300
+        && data.audioUrl is string && data.audioUrl.size() >= 1 && data.audioUrl.size() <= 950000
+        && (!('audioStoragePath' in data) || (data.audioStoragePath is string && data.audioStoragePath.size() <= 400))
+        && data.audioFileName is string && data.audioFileName.size() >= 1 && data.audioFileName.size() <= 200
+        && data.audioDurationSec is number && data.audioDurationSec >= 0 && data.audioDurationSec <= 600
+        && data.status in ['pending', 'approved', 'rejected']
+        && data.consentConfirmed is bool
+        && data.screeningStatus in ['clean', 'flagged']
+        && data.screeningFlags is list && data.screeningFlags.size() <= 12
+        && (!('publishedVoiceId' in data) || (data.publishedVoiceId is string && data.publishedVoiceId.size() <= 128))
+        && data.source == 'public'
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidContributionBatch(data, batchId) {
+      return data.keys().hasAll([
+          'id',
+          'submissionId',
+          'jarThoughtId',
+          'voiceSubmissionId',
+          'contributorLabel',
+          'consentConfirmed',
+          'screeningStatus',
+          'screeningFlags',
+          'source',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'submissionId',
+          'jarThoughtId',
+          'voiceSubmissionId',
+          'contributorLabel',
+          'consentConfirmed',
+          'screeningStatus',
+          'screeningFlags',
+          'source',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == batchId && isValidId(data.id)
+        && data.submissionId is string && data.submissionId == batchId && isValidId(data.submissionId)
+        && data.jarThoughtId is string && isValidId(data.jarThoughtId)
+        && data.voiceSubmissionId is string && isValidId(data.voiceSubmissionId)
+        && data.contributorLabel is string && data.contributorLabel.size() >= 1 && data.contributorLabel.size() <= 120
+        && data.consentConfirmed is bool
+        && data.screeningStatus in ['clean', 'flagged']
+        && data.screeningFlags is list && data.screeningFlags.size() <= 12
+        && data.source == 'public'
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMediaBlob(data, blobId) {
+      return data.keys().hasAll([
+          'id',
+          'scope',
+          'isPublic',
+          'mimeType',
+          'dataBase64',
+          'sizeBytes',
+          'filename',
+          'uploaderUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'scope',
+          'isPublic',
+          'mimeType',
+          'dataBase64',
+          'sizeBytes',
+          'filename',
+          'uploaderUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == blobId && isValidId(data.id)
+        && data.scope in ['site-media', 'wishlist-media', 'postcard-media']
+        && data.isPublic is bool
+        && ((data.scope == 'site-media' && data.isPublic == true) || (data.scope != 'site-media' && data.isPublic == false))
+        && data.mimeType in ['image/jpeg', 'image/png', 'image/webp', 'audio/mpeg', 'audio/ogg']
+        && data.dataBase64 is string && data.dataBase64.size() >= 1 && data.dataBase64.size() <= 920000
+        && data.sizeBytes is number && data.sizeBytes >= 1 && data.sizeBytes <= 700000
+        && data.filename is string && data.filename.size() >= 1 && data.filename.size() <= 200
+        && data.uploaderUid is string && data.uploaderUid.size() >= 1 && data.uploaderUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // --- Collection Rules ---
 
     // 1. Admins registry
@@ -703,6 +866,7 @@ service cloud.firestore {
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'name',
           'flowerType',
+          'flowerQuantity',
           'audioUrl',
           'audioFileName',
           'photoUrl',
@@ -1013,8 +1177,12 @@ service cloud.firestore {
             incoming().source == 'public'
             && incoming().status == 'pending'
             && incoming().opened == false
+            && incoming().consentConfirmed == true
             && !('openedAt' in incoming())
             && !('ownerUid' in incoming())
+            && isValidId(incoming().submissionId)
+            && existsAfter(/databases/$(database)/documents/voiceSubmissions/$(incoming().submissionId))
+            && existsAfter(/databases/$(database)/documents/contributionBatches/$(incoming().submissionId))
           )
           || (
             isAdmin()
@@ -1151,6 +1319,104 @@ service cloud.firestore {
           'updatedAt'
         ]);
       allow delete: if isValidId(photoId) && isAdmin();
+    }
+
+    // 14. Unified Public Contribution — Voices of Love Moderation Queue (Admin-only reads)
+    match /voiceSubmissions/{submissionId} {
+      allow get: if isValidId(submissionId) && isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(submissionId)
+        && isValidVoiceSubmission(incoming(), submissionId)
+        && incoming().status == 'pending'
+        && incoming().consentConfirmed == true
+        && incoming().source == 'public'
+        && !('publishedVoiceId' in incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/contributionBatches/$(submissionId));
+      allow update: if isValidId(submissionId)
+        && isValidVoiceSubmission(incoming(), submissionId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().submissionId == existing().submissionId
+        && incoming().source == existing().source
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status',
+          'publishedVoiceId',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(submissionId) && isAdmin();
+    }
+
+    // 15. Unified Public Contribution — Atomic Submission Batch Registry (Admin-only reads)
+    match /contributionBatches/{batchId} {
+      allow get: if isValidId(batchId) && isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(batchId)
+        && isValidContributionBatch(incoming(), batchId)
+        && incoming().consentConfirmed == true
+        && incoming().source == 'public'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/jarThoughts/$(incoming().jarThoughtId))
+        && existsAfter(/databases/$(database)/documents/voiceSubmissions/$(incoming().voiceSubmissionId));
+      allow update: if isValidId(batchId)
+        && isValidContributionBatch(incoming(), batchId)
+        && isAdmin()
+        && incoming().id == existing().id
+        && incoming().submissionId == existing().submissionId
+        && incoming().source == existing().source
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'contributorLabel',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(batchId) && isAdmin();
+    }
+
+    // 16. Persistent Cloud Media Blobs (Public site-media readable by ID; couple-only for wishlist/postcard)
+    match /mediaBlobs/{blobId} {
+      allow get: if isValidId(blobId) && (existing().isPublic == true || isCoupleMember());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(blobId)
+        && isValidMediaBlob(incoming(), blobId)
+        && incoming().uploaderUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (incoming().scope == 'site-media' && isAdmin())
+          || (incoming().scope != 'site-media' && isCoupleMember())
+        );
+      allow update: if isValidId(blobId)
+        && isValidMediaBlob(incoming(), blobId)
+        && (
+          (existing().scope == 'site-media' && isAdmin())
+          || (
+            existing().scope != 'site-media'
+            && (isAdmin() || (isCoupleMember() && existing().uploaderUid == request.auth.uid))
+          )
+        )
+        && incoming().id == existing().id
+        && incoming().scope == existing().scope
+        && incoming().isPublic == existing().isPublic
+        && incoming().uploaderUid == existing().uploaderUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'mimeType',
+          'dataBase64',
+          'sizeBytes',
+          'filename',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(blobId)
+        && (
+          isAdmin()
+          || (isCoupleMember() && existing().scope != 'site-media' && existing().uploaderUid == request.auth.uid)
+        );
     }
   }
 }

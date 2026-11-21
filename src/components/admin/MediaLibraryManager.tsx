@@ -1,11 +1,12 @@
 import { ChangeEvent, useId, useState } from 'react';
-import { RefreshCw, Trash2, Upload } from 'lucide-react';
+import { ImageOff, RefreshCw, Trash2, Upload } from 'lucide-react';
 import {
   MediaAssetItem,
   deleteMediaFile,
   uploadMediaFile,
 } from '../../utils/adminApi';
 import { MediaKind } from '../../utils/adminContent';
+import { isLegacyEphemeralUploadUrl } from '../../utils/imageOptimizer';
 import { formatSafeUiError } from '../../utils/safeError';
 
 interface MediaLibraryManagerProps {
@@ -28,6 +29,7 @@ export function MediaLibraryManager({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
+  const [brokenUrls, setBrokenUrls] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const visibleAssets = mediaAssets.filter((item) =>
@@ -202,12 +204,26 @@ export function MediaLibraryManager({
           >
             <div className="flex items-start gap-3">
               {asset.kind === 'image' && (
-                <img
-                  src={asset.url}
-                  alt={asset.filename}
-                  className="w-16 h-16 rounded-xl object-cover shrink-0 bg-[#EAE0CF] border border-[#38271F]/12"
-                  loading="lazy"
-                />
+                brokenUrls[asset.url] ? (
+                  <div
+                    aria-label={`Pratinjau ${asset.filename} tidak tersedia`}
+                    className="w-16 h-16 rounded-xl shrink-0 bg-[#EAE0CF] border border-[#A6533B]/25 flex items-center justify-center text-[#A6533B]"
+                  >
+                    <ImageOff className="w-5 h-5" />
+                  </div>
+                ) : (
+                  <img
+                    src={asset.url}
+                    alt={asset.filename}
+                    onError={() =>
+                      setBrokenUrls((prev) =>
+                        prev[asset.url] ? prev : { ...prev, [asset.url]: true }
+                      )
+                    }
+                    className="w-16 h-16 rounded-xl object-cover shrink-0 bg-[#EAE0CF] border border-[#38271F]/12"
+                    loading="lazy"
+                  />
+                )
               )}
 
               <div className="min-w-0 flex-1">
@@ -218,6 +234,11 @@ export function MediaLibraryManager({
                   <span className="text-[11px] text-[#38271F]/60 tabular-nums">
                     {formatBytes(asset.sizeBytes)}
                   </span>
+                  {(brokenUrls[asset.url] || isLegacyEphemeralUploadUrl(asset.url)) && (
+                    <span className="px-2 py-0.5 rounded bg-[#A6533B]/15 text-[#A6533B] text-[10px] font-semibold">
+                      File lama hilang
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-xs font-semibold text-[#38271F] truncate">
                   {asset.filename}

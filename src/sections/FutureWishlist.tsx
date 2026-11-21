@@ -18,6 +18,7 @@ import { BotanicalFlowerSVG } from '../components/Flower';
 import { HiddenPolaroidSpot } from '../components/quests/HiddenPolaroidSpot';
 import { DecorationSVG } from '../components/story/ScrapbookDecorations';
 import { WishFormModal } from '../components/wishlist/WishFormModal';
+import { CloudMediaImg } from '../components/CloudMediaImg';
 import {
   CanonicalWishlistVisibility,
   WISHLIST_CATEGORY_META,
@@ -501,7 +502,7 @@ export function FutureWishlist() {
                               pIdx % 2 === 0 ? '-rotate-2' : 'rotate-2'
                             }`}
                           >
-                            <img
+                            <CloudMediaImg
                               src={photoUrl}
                               alt={`${entry.title} foto ${pIdx + 1}`}
                               className="w-20 h-20 object-cover bg-[#EAE0CF]"
@@ -649,7 +650,7 @@ export function FutureWishlist() {
           aria-modal="true"
           onClick={() => setLightboxUrl(null)}
         >
-          <img
+          <CloudMediaImg
             src={lightboxUrl}
             alt="Foto Kenangan Wishlist"
             className="max-w-full max-h-[85dvh] rounded-lg border-8 border-[#FBF8F2] shadow-2xl object-contain"

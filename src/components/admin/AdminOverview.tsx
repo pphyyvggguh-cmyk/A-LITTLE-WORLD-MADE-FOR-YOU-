@@ -9,6 +9,8 @@ import {
   FolderOpen,
   Globe2,
   Heart,
+  Home,
+  Inbox,
   Mail,
   MessageSquareHeart,
   Send,
@@ -21,6 +23,8 @@ import { formatSafeUiError } from '../../utils/safeError';
 
 export type AdminTabId =
   | 'overview'
+  | 'contributions'
+  | 'homepage'
   | 'story'
   | 'world'
   | 'letters'
@@ -41,6 +45,7 @@ interface AdminOverviewProps {
   wishlistCount: number;
   postcardsCount: number;
   jarStats?: { total: number; pending: number; availableInPool: number };
+  contributionsStats?: { total: number; pending: number; flagged: number };
   onSelectTab: (tab: AdminTabId) => void;
   onOpenPublicSite: () => void;
   onImportBackupJson: (raw: unknown) => Promise<{ importedSections: string[]; importedVoices: number }>;
@@ -52,6 +57,7 @@ export function AdminOverview({
   wishlistCount,
   postcardsCount,
   jarStats,
+  contributionsStats,
   onSelectTab,
   onOpenPublicSite,
   onImportBackupJson,
@@ -96,6 +102,22 @@ export function AdminOverview({
     icon: typeof BookHeart;
     accent: string;
   }[] = [
+    {
+      tab: 'contributions',
+      title: 'Moderasi Kontribusi Terpadu',
+      stat: `${contributionsStats?.pending ?? 0} Pending · ${contributionsStats?.total ?? 0} Paket`,
+      detail: 'Tinjau kiriman berpasangan (Toples + Voices of Love), dengarkan audio, cek screening & setujui.',
+      icon: Inbox,
+      accent: '#743D4A',
+    },
+    {
+      tab: 'homepage',
+      title: 'Kelola Beranda Utama',
+      stat: `${(content.homepage?.heroFrames.length ?? 3)} Hero · ${(content.homepage?.featuredMemories.length ?? 3)} Memories`,
+      detail: 'Ganti foto Hero Collage, tukar Polaroid, edit judul Featured Memories dengan live preview.',
+      icon: Home,
+      accent: '#A6533B',
+    },
     {
       tab: 'story',
       title: 'Our Story Manager',

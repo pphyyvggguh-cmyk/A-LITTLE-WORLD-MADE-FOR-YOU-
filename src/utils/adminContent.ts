@@ -7,6 +7,7 @@ import type { BirthdayVideoConfig } from '../data/video.ts';
 import type { VoiceOfLoveEntry } from '../data/voices.ts';
 import type { StorySecretNote } from '../data/hiddenMessages.ts';
 import type { HeartGalleryPhoto } from '../data/quests.ts';
+import type { HomepageConfig } from '../data/homepage.ts';
 
 export type MediaKind = 'image' | 'audio' | 'video';
 
@@ -27,6 +28,7 @@ export interface SiteContentPayload {
   vinylConfig?: VinylPlayerConfig;
   vinylPlaylist?: VinylTrack[];
   heartGallery?: HeartGalleryPhoto[];
+  homepage?: HomepageConfig;
   updatedAt: string;
 }
 
@@ -169,6 +171,7 @@ export function collectMediaUsageMap(
   content: Pick<SiteContentPayload, 'storyPages' | 'destinations' | 'videoConfig' | 'voices'> & {
     vinylPlaylist?: VinylTrack[];
     heartGallery?: HeartGalleryPhoto[];
+    homepage?: HomepageConfig;
   }
 ): Record<string, string[]> {
   const usage: Record<string, string[]> = {};
@@ -206,6 +209,14 @@ export function collectMediaUsageMap(
 
   for (const photo of content.heartGallery || []) {
     track(photo.imageUrl, `Heart Gallery · ${photo.caption}`);
+  }
+
+  for (const frame of content.homepage?.heroFrames || []) {
+    track(frame.image, `Homepage · ${frame.slotLabel}`);
+  }
+
+  for (const card of content.homepage?.featuredMemories || []) {
+    track(card.image, `Homepage · Featured (${card.title})`);
   }
 
   return usage;

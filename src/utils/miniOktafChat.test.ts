@@ -139,3 +139,50 @@ test('buildMiniOktafSystemInstruction provides chapter awareness, progressive cl
   assert.match(followUpPrompt, /Quest 2 \(Three Little Questions\): SUDAH SELESAI \(3\/3\)/);
   assert.match(followUpPrompt, /Quest 3 \(Find the Polaroids\): SUDAH SELESAI \(5\/5\)/);
 });
+
+test('requestMiniOktafChatReply handles timeouts, HTML 404 responses, and empty replies safely', async () => {
+  await assert.rejects(
+    () =>
+      requestMiniOktafChatReply({
+        messages: [{ id: '1', role: 'user', text: 'Halo', createdAt: '2026-01-01T00:00:00Z' }],
+        currentChapter: 'hub',
+        collectedFlowerCount: 0,
+        fetchImpl: (async () => {
+          const abortErr = new Error('The operation was aborted');
+          abortErr.name = 'AbortError';
+          throw abortErr;
+        }) as typeof fetch,
+      }),
+    /kehabisan waktu/
+  );
+
+  await assert.rejects(
+    () =>
+      requestMiniOktafChatReply({
+        messages: [{ id: '1', role: 'user', text: 'Halo', createdAt: '2026-01-01T00:00:00Z' }],
+        currentChapter: 'hub',
+        collectedFlowerCount: 0,
+        fetchImpl: (async () =>
+          new Response('<!doctype html><html><body>404</body></html>', {
+            status: 404,
+            headers: { 'Content-Type': 'text/html' },
+          })) as typeof fetch,
+      }),
+    /HTTP 404/
+  );
+
+  await assert.rejects(
+    () =>
+      requestMiniOktafChatReply({
+        messages: [{ id: '1', role: 'user', text: 'Halo', createdAt: '2026-01-01T00:00:00Z' }],
+        currentChapter: 'hub',
+        collectedFlowerCount: 0,
+        fetchImpl: (async () =>
+          new Response(
+            JSON.stringify({ ok: true, reply: '   ', pose: 'waving', expression: 'happy' }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          )) as typeof fetch,
+      }),
+    /belum mengirim balasan/
+  );
+});

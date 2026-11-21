@@ -17,6 +17,7 @@ import {
   PostcardSecret,
 } from '../../data/postcards';
 import { DecorationSVG } from '../story/ScrapbookDecorations';
+import { CloudMediaImg } from '../CloudMediaImg';
 import { EASE_OUT_EXPO } from '../../utils/animation';
 import {
   classifyPostcardBucket,
@@ -225,7 +226,7 @@ export function PostcardCard({
                   onClick={() => onPhotoClick?.(secret.photoUrl)}
                   className="bg-[#FBF8F2] p-1.5 pb-4 border border-[#38271F]/16 shadow-polaroid rotate-2 shrink-0 cursor-pointer hover:scale-[1.03] transition-transform"
                 >
-                  <img
+                  <CloudMediaImg
                     src={secret.photoUrl}
                     alt={`Lampiran foto ${envelope.title}`}
                     className="w-28 h-28 object-cover bg-[#EAE0CF]"

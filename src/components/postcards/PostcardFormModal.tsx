@@ -14,6 +14,7 @@ import {
 import { fetchPostcardSecret, uploadPostcardPhoto } from '../../utils/adminApi';
 import { validatePostcardInput } from '../../utils/postcards';
 import { formatSafeUiError } from '../../utils/safeError';
+import { CloudMediaImg } from '../CloudMediaImg';
 
 interface PostcardFormModalProps {
   mode: 'create' | 'edit';
@@ -411,7 +412,7 @@ export function PostcardFormModal({
 
                 {photoUrl && (
                   <div className="w-28 bg-[#FBF8F2] p-1.5 pb-4 border border-[#38271F]/14 shadow-polaroid -rotate-1">
-                    <img
+                    <CloudMediaImg
                       src={photoUrl}
                       alt="Pratinjau foto kartu pos"
                       referrerPolicy="no-referrer"

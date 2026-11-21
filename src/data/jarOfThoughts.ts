@@ -106,6 +106,10 @@ export interface JarThoughtSubmission {
   openedAt?: string;
   source: JarThoughtSource;
   ownerUid?: string;
+  submissionId?: string;
+  consentConfirmed?: boolean;
+  screeningStatus?: 'clean' | 'flagged';
+  screeningFlags?: string[];
   createdAt: string;
   updatedAt: string;
 }

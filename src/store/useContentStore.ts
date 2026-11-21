@@ -17,6 +17,7 @@ import {
 import { DEFAULT_VOICES_OF_LOVE, VoiceOfLoveEntry } from '../data/voices';
 import { DEFAULT_SECRET_NOTES, type StorySecretNote } from '../data/hiddenMessages';
 import { DEFAULT_HEART_GALLERY_PHOTOS, type HeartGalleryPhoto } from '../data/quests';
+import { DEFAULT_HOMEPAGE_CONFIG, type HomepageConfig } from '../data/homepage';
 import { fetchSiteContent } from '../utils/adminApi';
 import type { MiniOktafContentConfig, SiteContentPayload } from '../utils/adminContent';
 
@@ -31,6 +32,7 @@ interface ContentState {
   vinylConfig: VinylPlayerConfig;
   vinylPlaylist: VinylTrack[];
   heartGallery: HeartGalleryPhoto[];
+  homepage: HomepageConfig;
   updatedAt: string;
   hydrated: boolean;
 
@@ -53,6 +55,7 @@ export const useContentStore = create<ContentState>((set) => ({
   vinylConfig: DEFAULT_VINYL_CONFIG,
   vinylPlaylist: DEFAULT_VINYL_PLAYLIST,
   heartGallery: DEFAULT_HEART_GALLERY_PHOTOS,
+  homepage: DEFAULT_HOMEPAGE_CONFIG,
   updatedAt: '',
   hydrated: false,
 
@@ -70,6 +73,7 @@ export const useContentStore = create<ContentState>((set) => ({
         vinylConfig: payload.vinylConfig ?? DEFAULT_VINYL_CONFIG,
         vinylPlaylist: payload.vinylPlaylist ?? DEFAULT_VINYL_PLAYLIST,
         heartGallery: payload.heartGallery ?? DEFAULT_HEART_GALLERY_PHOTOS,
+        homepage: payload.homepage ?? DEFAULT_HOMEPAGE_CONFIG,
         updatedAt: payload.updatedAt,
         hydrated: true,
       });
@@ -91,6 +95,7 @@ export const useContentStore = create<ContentState>((set) => ({
       vinylConfig: payload.vinylConfig ?? DEFAULT_VINYL_CONFIG,
       vinylPlaylist: payload.vinylPlaylist ?? DEFAULT_VINYL_PLAYLIST,
       heartGallery: payload.heartGallery ?? DEFAULT_HEART_GALLERY_PHOTOS,
+      homepage: payload.homepage ?? DEFAULT_HOMEPAGE_CONFIG,
       updatedAt: payload.updatedAt,
       hydrated: true,
     });

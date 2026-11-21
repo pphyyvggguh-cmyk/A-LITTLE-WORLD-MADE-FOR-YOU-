@@ -159,3 +159,46 @@ test('heartGallery exposes only published photos publicly and restricts writes t
   assert.ok(hgSection.includes('isValidHeartGalleryPhoto(incoming(), photoId)'));
   assert.ok(rulesText.includes("'flowers', 'butterflies', 'stars', 'notes', 'stamps', 'scrapbook'"));
 });
+
+test('unified contribution queues (voiceSubmissions & contributionBatches) enforce admin-only reads, non-anonymous voices, consent, and atomic pairing', () => {
+  const vsStart = rulesText.indexOf('match /voiceSubmissions/{submissionId}');
+  const cbStart = rulesText.indexOf('match /contributionBatches/{batchId}');
+  assert.ok(vsStart > 0 && cbStart > vsStart);
+
+  const vsSection = rulesText.slice(vsStart, cbStart);
+  const cbSection = rulesText.slice(cbStart);
+
+  assert.equal(vsSection.includes('allow get: if true'), false);
+  assert.equal(vsSection.includes('allow list: if true'), false);
+  assert.ok(vsSection.includes('allow get: if isValidId(submissionId) && isAdmin();'));
+  assert.ok(vsSection.includes('allow list: if isBootstrappedAdmin();'));
+  assert.ok(vsSection.includes("incoming().status == 'pending'"));
+  assert.ok(vsSection.includes('incoming().consentConfirmed == true'));
+  assert.ok(vsSection.includes('existsAfter(/databases/$(database)/documents/contributionBatches/$(submissionId))'));
+
+  assert.ok(cbSection.includes('allow get: if isValidId(batchId) && isAdmin();'));
+  assert.ok(cbSection.includes('allow list: if isBootstrappedAdmin();'));
+  assert.ok(cbSection.includes('existsAfter(/databases/$(database)/documents/jarThoughts/$(incoming().jarThoughtId))'));
+  assert.ok(cbSection.includes('existsAfter(/databases/$(database)/documents/voiceSubmissions/$(incoming().voiceSubmissionId))'));
+
+  // Non-anonymous enforcement on voiceSubmissions
+  assert.ok(rulesText.includes("!(data.senderName.lower() in ['anonim', 'anonymous', 'someone special'])"));
+  assert.ok(rulesText.includes('data.flowerQuantity is number && data.flowerQuantity >= 1 && data.flowerQuantity <= 5'));
+  assert.ok(rulesText.includes("'homepage'"));
+});
+
+test('mediaBlobs enforces public-site-only get, couple privacy for private scopes, strict MIME/size bounds, and uploaderUid', () => {
+  const mbStart = rulesText.indexOf('match /mediaBlobs/{blobId}');
+  assert.ok(mbStart > 0);
+  const mbSection = rulesText.slice(mbStart);
+
+  assert.equal(mbSection.includes('allow get: if true'), false);
+  assert.equal(mbSection.includes('allow list: if true'), false);
+  assert.ok(mbSection.includes('existing().isPublic == true || isCoupleMember()'));
+  assert.ok(mbSection.includes('isValidMediaBlob(incoming(), blobId)'));
+  assert.ok(mbSection.includes('incoming().uploaderUid == request.auth.uid'));
+  assert.ok(rulesText.includes('data.dataBase64.size() <= 920000'));
+  assert.ok(rulesText.includes("((data.scope == 'site-media' && data.isPublic == true) || (data.scope != 'site-media' && data.isPublic == false))"));
+});
+
+

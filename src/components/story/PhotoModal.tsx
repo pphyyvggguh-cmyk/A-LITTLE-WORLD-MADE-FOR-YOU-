@@ -15,7 +15,7 @@ export function PhotoModal({ polaroid, pageLabel, onClose }: PhotoModalProps) {
 
   useEffect(() => {
     setImgError(false);
-  }, [polaroid?.id]);
+  }, [polaroid?.id, polaroid?.image]);
 
   useEffect(() => {
     if (!polaroid) return;

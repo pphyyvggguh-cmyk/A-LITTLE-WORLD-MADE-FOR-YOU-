@@ -3,6 +3,13 @@ import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebas
 
 export type UploadScope = 'site-media' | 'wishlist-media' | 'postcard-media';
 
+export interface SharedUploadResponse {
+  url: string;
+  storagePath: string;
+  filename: string;
+  provider: 'firebase-storage' | 'firestore-media' | 'app-server';
+}
+
 export interface SharedUploadOptions {
   file: File;
   scope: UploadScope;
@@ -15,7 +22,7 @@ export interface SharedUploadOptions {
   onProgress?: (percent: number) => void;
   timeoutMs?: number;
   maxRetries?: number;
-  // Dependency injection hooks for unit testing
+  // Dependency injection hooks for unit testing and cloud persistence
   fetchFn?: typeof fetch;
   xhrFactory?: () => XMLHttpRequest;
   firebaseUploader?: (args: {
@@ -23,13 +30,12 @@ export interface SharedUploadOptions {
     storagePath: string;
     onProgress: (percent: number) => void;
   }) => Promise<string>;
-}
-
-export interface SharedUploadResponse {
-  url: string;
-  storagePath: string;
-  filename: string;
-  provider: 'firebase-storage' | 'app-server';
+  firestoreBlobUploader?: (args: {
+    file: File;
+    scope: UploadScope;
+    folderOrTargetId: string;
+    onProgress: (percent: number) => void;
+  }) => Promise<SharedUploadResponse | null>;
 }
 
 interface BucketProbeEntry {
@@ -194,7 +200,10 @@ async function uploadOnceViaXhr(opts: {
       }
 
       const serverMsg =
-        parsed.error || `Server menolak unggahan (HTTP ${xhr.status}).`;
+        parsed.error ||
+        (xhr.status === 404
+          ? 'Endpoint unggahan file besar belum aktif di hosting ini. Aktifkan Firebase Storage untuk file video/audio besar.'
+          : `Server menolak unggahan (HTTP ${xhr.status}).`);
       if (xhr.status >= 400 && xhr.status < 500 && xhr.status !== 408 && xhr.status !== 429) {
         reject(new NonRetryableUploadError(serverMsg, xhr.status));
         return;
@@ -366,7 +375,7 @@ export async function executeSharedUpload(
         provider: 'firebase-storage',
       };
     } catch (err) {
-      // Only fall back to /api/upload when Firebase Storage bucket is missing/blocked;
+      // Only fall back when Firebase Storage bucket is missing/blocked;
       // surface real permission/auth errors directly.
       if (!isFirebaseBucketMissingError(err)) {
         throw new Error(mapUploadErrorMessage(err));
@@ -374,7 +383,20 @@ export async function executeSharedUpload(
     }
   }
 
-  // 2. Fallback / Active App Server Upload Route (/api/upload)
+  // 2. Persistent Cloud Firestore Blob Upload (works across Vercel, Android, refreshes, and devices)
+  if (opts.firestoreBlobUploader) {
+    const blobResult = await opts.firestoreBlobUploader({
+      file: opts.file,
+      scope: opts.scope,
+      folderOrTargetId: opts.folderOrTargetId,
+      onProgress: (pct) => opts.onProgress?.(pct),
+    });
+    if (blobResult) {
+      return blobResult;
+    }
+  }
+
+  // 3. Express App Server Upload Route (/api/upload) for local Node / large files
   return uploadViaExpressEndpoint({
     file: opts.file,
     scope: opts.scope,

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { BookHeart, Mail, Plus, Save, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, BookHeart, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { StorySecretNote } from '../../data/hiddenMessages';
 import { BookPolaroidItem, MemoryBookPage } from '../../data/memories';
 import { MediaAssetItem, saveStoryPages } from '../../utils/adminApi';
@@ -32,6 +32,11 @@ export function StoryManager({
   useEffect(() => {
     setDraft(pages);
   }, [pages]);
+
+  const hasUnsavedChanges = useMemo(
+    () => JSON.stringify(draft) !== JSON.stringify(pages),
+    [draft, pages]
+  );
 
   const currentPage = draft[selectedIndex] ?? draft[0];
 
@@ -164,6 +169,18 @@ export function StoryManager({
             <span>{saving ? 'Menyimpan...' : 'Simpan Our Story'}</span>
           </button>
         </div>
+
+        {hasUnsavedChanges && (
+          <p
+            role="status"
+            className="mt-3 rounded-xl bg-[#C4A574]/20 border border-[#C4A574]/45 px-3.5 py-2.5 text-xs font-medium text-[#38271F] flex items-center gap-2"
+          >
+            <AlertCircle className="w-4 h-4 text-[#A6533B] shrink-0" />
+            <span>
+              Perubahan foto/teks belum disimpan ke buku — klik &ldquo;Simpan Our Story&rdquo; agar tersimpan permanen.
+            </span>
+          </p>
+        )}
 
         {status && (
           <p

@@ -8,6 +8,11 @@ import {
   probeFirebaseStorageAvailability,
   uploadViaExpressEndpoint,
 } from './uploadTransport.ts';
+import {
+  extractMediaBlobRef,
+  isLegacyEphemeralUploadUrl,
+  normalizeBlobImageMime,
+} from './imageOptimizer.ts';
 
 class MockXHR {
   method = '';
@@ -220,4 +225,58 @@ test('executeSharedUpload falls back cleanly when Firebase Storage bucket is 404
 
   assert.equal(isFirebaseBucketMissingError({ code: 'storage/bucket-not-found' }), true);
   assert.match(mapUploadErrorMessage({ code: 'storage/quota-exceeded' }), /Kuota penyimpanan penuh/);
+});
+
+test('executeSharedUpload prioritizes firestoreBlobUploader over Express fallback when Storage bucket returns 404', async () => {
+  clearBucketProbeCache();
+  const file = new File([new Uint8Array(64)], 'polaroid.jpg', { type: 'image/jpeg' });
+  let expressCalled = false;
+
+  const result = await executeSharedUpload({
+    file,
+    scope: 'site-media',
+    folderOrTargetId: 'images',
+    firebaseStoragePath: 'site-media/images/polaroid.jpg',
+    storageBucket: 'hazel-star-k6gf7.firebasestorage.app',
+    idToken: 'tok',
+    fetchFn: (async () => new Response('', { status: 404 })) as typeof fetch,
+    firestoreBlobUploader: async ({ onProgress }) => {
+      onProgress(60);
+      onProgress(100);
+      return {
+        url: '/api/media?id=site-media-polaroid-123',
+        storagePath: 'mediaBlobs/site-media-polaroid-123',
+        filename: 'polaroid.jpg',
+        provider: 'firestore-media',
+      };
+    },
+    xhrFactory: () => {
+      expressCalled = true;
+      return new MockXHR(() => {}) as unknown as XMLHttpRequest;
+    },
+  });
+
+  assert.equal(expressCalled, false);
+  assert.equal(result.provider, 'firestore-media');
+  assert.equal(result.url, '/api/media?id=site-media-polaroid-123');
+});
+
+test('imageOptimizer helpers parse public and private media blob refs and normalize image MIME types', () => {
+  assert.deepEqual(extractMediaBlobRef('/api/media?id=abc_123'), {
+    id: 'abc_123',
+    isPrivate: false,
+  });
+  assert.deepEqual(extractMediaBlobRef('/api/media?id=wish_1&private=1'), {
+    id: 'wish_1',
+    isPrivate: true,
+  });
+  assert.equal(extractMediaBlobRef('/api/media?id=../evil'), null);
+  assert.equal(extractMediaBlobRef('/assets/photos/memories/mem-01.svg'), null);
+
+  assert.equal(isLegacyEphemeralUploadUrl('/assets/uploads/site-media/images/a.jpg'), true);
+  assert.equal(isLegacyEphemeralUploadUrl('/api/media?id=a'), false);
+
+  assert.equal(normalizeBlobImageMime('image/pjpeg', 'PHOTO.JPG'), 'image/jpeg');
+  assert.equal(normalizeBlobImageMime('', 'photo.webp'), 'image/webp');
+  assert.equal(normalizeBlobImageMime('application/pdf', 'doc.pdf'), null);
 });

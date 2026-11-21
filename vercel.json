@@ -10,6 +10,11 @@
       ]
     }
   ],
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "firebase-applet-config.json"
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api/|assets/|__/).*)",

@@ -13,13 +13,11 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
-import heroKeepsakeImg from '../assets/images/hero_scrapbook_keepsake_1795173831172.jpg';
-import featuredPicnicImg from '../assets/images/featured_golden_picnic_1795173832261.jpg';
-import featuredLanternsImg from '../assets/images/featured_twilight_lanterns_1795173831660.jpg';
 import { HiddenFlowerSpot } from '../components/Flower';
 import { BotanicalDivider } from '../components/editorial/StorybookPrimitives';
 import { BookCornerOrnamentSVG } from '../components/storybook/StorybookIllustrations';
 import { FLOWERS_DATA } from '../data/flowers';
+import { DEFAULT_HOMEPAGE_CONFIG } from '../data/homepage';
 import { HUB_CARD_REACTIONS } from '../data/miniOktaf';
 import { useFirebaseAuth } from '../lib/FirebaseProvider';
 import { useContentStore } from '../store/useContentStore';
@@ -121,46 +119,6 @@ const EXPLORE_CHAPTERS: HubChapterEntry[] = [
   },
 ];
 
-interface FeaturedMemoryItem {
-  target: HubChapterId;
-  image: string;
-  alt: string;
-  kicker: string;
-  title: string;
-  caption: string;
-  tiltClass: string;
-}
-
-const FEATURED_MEMORIES: FeaturedMemoryItem[] = [
-  {
-    target: 'story',
-    image: heroKeepsakeImg,
-    alt: 'Jurnal scrapbook terbuka dengan bunga peoni kering dan amplop kenangan di bawah cahaya pagi',
-    kicker: 'Halaman Kenangan',
-    title: 'Every quiet chapter in our scrapbook',
-    caption: 'Catatan tulisan tangan, foto Polaroid, dan momen kecil yang selalu ingin disimpan.',
-    tiltClass: '-rotate-1',
-  },
-  {
-    target: 'world',
-    image: featuredLanternsImg,
-    alt: 'Meja kafe senja menghadap lampu kota dengan globe miniatur dan kotak hadiah berpitakan marun',
-    kicker: 'Peta Impian Kita',
-    title: 'Twenty cities waiting on our little globe',
-    caption: 'Dari Bandung sampai sudut kota yang ingin kita datangi pelan-pelan berdua.',
-    tiltClass: 'rotate-1',
-  },
-  {
-    target: 'letters',
-    image: featuredPicnicImg,
-    alt: 'Vas kaca kuning keemasan berisi bunga liar bersama surat berikat pita krem dan kamera film vintage',
-    kicker: 'Surat & Ucapan',
-    title: 'Letters sealed with warmth and wishes',
-    caption: 'Kata-kata yang sengaja dirangkai untuk dibaca ulang di hari baik maupun lelah.',
-    tiltClass: '-rotate-1',
-  },
-];
-
 export function Hub() {
   const { isAdmin } = useFirebaseAuth();
   const navigateTo = useStore((s) => s.navigateTo);
@@ -176,6 +134,21 @@ export function Hub() {
   const replayBookIntro = useStore((s) => s.replayBookIntro);
   const lockExperience = useStore((s) => s.lockExperience);
   const hubCardReactions = useContentStore((s) => s.miniOktaf.hubCardReactions);
+  const homepage = useContentStore((s) => s.homepage);
+
+  const heroMain =
+    homepage.heroFrames.find((f) => f.id === 'hero-main') ??
+    DEFAULT_HOMEPAGE_CONFIG.heroFrames[0];
+  const polaroidTop =
+    homepage.heroFrames.find((f) => f.id === 'polaroid-top') ??
+    DEFAULT_HOMEPAGE_CONFIG.heroFrames[1];
+  const polaroidBottom =
+    homepage.heroFrames.find((f) => f.id === 'polaroid-bottom') ??
+    DEFAULT_HOMEPAGE_CONFIG.heroFrames[2];
+  const featuredMemories =
+    homepage.featuredMemories.length > 0
+      ? [...homepage.featuredMemories].sort((a, b) => a.order - b.order)
+      : DEFAULT_HOMEPAGE_CONFIG.featuredMemories;
 
   const isRewardUnlocked =
     rewardClaimed || collectedFlowers.length >= FLOWERS_DATA.length;
@@ -305,17 +278,17 @@ export function Hub() {
                 />
                 <div className="aspect-[3/4] overflow-hidden rounded-[4px] bg-[#EFE5D8]">
                   <img
-                    src={heroKeepsakeImg}
-                    alt="Jurnal scrapbook kenangan Wulan dan Oktaf dengan bunga kering dan amplop surat"
+                    src={heroMain.image}
+                    alt={heroMain.alt}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <figcaption className="mt-2.5 flex items-center justify-between gap-2 px-1">
                   <span className="font-hand text-lg text-[#552E3D]">
-                    Our little keepsakes ♡
+                    {heroMain.caption}
                   </span>
                   <span className="text-[11px] uppercase tracking-widest text-[#6E5F63]">
-                    Vol. 01
+                    {heroMain.badgeLabel || 'Vol. 01'}
                   </span>
                 </figcaption>
               </figure>
@@ -328,13 +301,13 @@ export function Hub() {
                 />
                 <div className="aspect-[4/3] overflow-hidden rounded-[4px] bg-[#EFE5D8]">
                   <img
-                    src={featuredPicnicImg}
-                    alt="Vas bunga keemasan dan kamera film vintage"
+                    src={polaroidTop.image}
+                    alt={polaroidTop.alt}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <figcaption className="mt-1.5 font-hand text-base text-[#30272A]/85 text-center">
-                  Golden afternoon
+                  {polaroidTop.caption}
                 </figcaption>
               </figure>
 
@@ -346,13 +319,13 @@ export function Hub() {
                 />
                 <div className="aspect-[4/3] overflow-hidden rounded-[4px] bg-[#EFE5D8]">
                   <img
-                    src={featuredLanternsImg}
-                    alt="Meja kafe senja bersama globe kecil dan kotak hadiah"
+                    src={polaroidBottom.image}
+                    alt={polaroidBottom.alt}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <figcaption className="mt-1.5 font-hand text-base text-[#552E3D] text-center">
-                  Cities we dream of
+                  {polaroidBottom.caption}
                 </figcaption>
               </figure>
             </div>
@@ -545,9 +518,9 @@ export function Hub() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
-            {FEATURED_MEMORIES.map((item) => (
+            {featuredMemories.map((item) => (
               <motion.button
-                key={item.target}
+                key={item.id}
                 type="button"
                 whileHover={{ y: -5 }}
                 whileTap={{ scale: 0.99 }}

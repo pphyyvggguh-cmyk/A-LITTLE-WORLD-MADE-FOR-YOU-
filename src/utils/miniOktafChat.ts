@@ -111,13 +111,15 @@ export function parseMiniOktafApiResult(rawText: string): {
       expression?: unknown;
     };
     const reply =
-      typeof parsed.reply === 'string' && parsed.reply.trim()
+      parsed && typeof parsed === 'object' && typeof parsed.reply === 'string'
         ? parsed.reply.trim()
-        : trimmed;
+        : trimmed.startsWith('{')
+          ? ''
+          : trimmed;
     return {
       reply,
-      pose: sanitizePose(parsed.pose, 'waving'),
-      expression: sanitizeExpression(parsed.expression, 'happy'),
+      pose: sanitizePose(parsed?.pose, 'waving'),
+      expression: sanitizeExpression(parsed?.expression, 'happy'),
     };
   } catch {
     return {
@@ -271,9 +273,11 @@ export async function requestMiniOktafChatReply(
   params: MiniOktafQuestProgressContext & {
     messages: MiniOktafChatMessage[];
     fetchImpl?: typeof fetch;
+    timeoutMs?: number;
   }
 ): Promise<MiniOktafChatApiReply> {
   const fetchFn = params.fetchImpl ?? fetch;
+  const timeoutMs = Math.max(3000, params.timeoutMs ?? 28_000);
   const payload = {
     messages: trimChatHistory(params.messages),
     currentChapter: params.currentChapter,
@@ -285,16 +289,33 @@ export async function requestMiniOktafChatReply(
     collectedPolaroidIds: params.collectedPolaroidIds ?? [],
   };
 
-  const response = await fetchFn('/api/mini-oktaf/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
-  const body = (await response.json().catch(() => null)) as
-    | MiniOktafChatApiReply
-    | MiniOktafChatApiError
-    | null;
+  let response: Response;
+  try {
+    response = await fetchFn('/api/mini-oktaf/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Koneksi ke Mini Oktaf kehabisan waktu. Coba kirim ulang ya.');
+    }
+    throw new Error('Koneksi internet terputus saat menghubungi Mini Oktaf. Coba lagi sebentar ya.');
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+
+  const contentType = (response.headers?.get('content-type') || '').toLowerCase();
+  const body = contentType.includes('application/json') || !contentType
+    ? ((await response.json().catch(() => null)) as
+        | MiniOktafChatApiReply
+        | MiniOktafChatApiError
+        | null)
+    : null;
 
   if (!response.ok || !body || !body.ok) {
     const errorMsg =
@@ -303,9 +324,14 @@ export async function requestMiniOktafChatReply(
     throw new Error(errorMsg);
   }
 
+  const cleanReply = typeof body.reply === 'string' ? body.reply.trim() : '';
+  if (!cleanReply) {
+    throw new Error('Mini Oktaf sempat terdiam dan belum mengirim balasan. Coba kirim ulang ya.');
+  }
+
   return {
     ok: true,
-    reply: body.reply,
+    reply: cleanReply,
     pose: sanitizePose(body.pose, 'waving'),
     expression: sanitizeExpression(body.expression, 'happy'),
   };

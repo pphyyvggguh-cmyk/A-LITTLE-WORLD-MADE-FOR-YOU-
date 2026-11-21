@@ -11,6 +11,7 @@ import { HiddenPolaroidSpot } from '../components/quests/HiddenPolaroidSpot';
 import { PostcardCard } from '../components/postcards/PostcardCard';
 import { PostcardFormModal } from '../components/postcards/PostcardFormModal';
 import { DecorationSVG } from '../components/story/ScrapbookDecorations';
+import { CloudMediaImg } from '../components/CloudMediaImg';
 import {
   PostcardBucket,
   PostcardEnvelope,
@@ -436,7 +437,7 @@ export function FuturePostcards() {
           aria-modal="true"
           onClick={() => setLightboxUrl(null)}
         >
-          <img
+          <CloudMediaImg
             src={lightboxUrl}
             alt="Foto Kenangan Kartu Pos"
             className="max-w-full max-h-[85dvh] rounded-lg border-8 border-[#FBF8F2] shadow-2xl object-contain"

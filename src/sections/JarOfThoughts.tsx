@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import {
   ArrowLeft,
   BookOpen,
@@ -13,8 +14,10 @@ import {
 import {
   DEFAULT_JAR_SETTINGS,
   getJarPaperStyleOption,
+  JarPaperStyle,
   JarPoolThought,
 } from '../data/jarOfThoughts';
+import { db } from '../lib/firebase';
 import { useStore } from '../store/useStore';
 import { EASE_OUT_EXPO } from '../utils/animation';
 import {
@@ -79,18 +82,62 @@ export function JarOfThoughts() {
   const [revealing, setRevealing] = useState(false);
   const [revealedThought, setRevealedThought] = useState<JarPoolThought | null>(null);
   const [inspectedKeepsake, setInspectedKeepsake] = useState<JarPoolThought | null>(null);
+  const [arrivingIds, setArrivingIds] = useState<string[]>([]);
+  const [arrivingPaperStyle, setArrivingPaperStyle] = useState<JarPaperStyle>('blush-petal');
 
   // Server-anchored monotonic clock offset: serverTimeMs - Date.now()
   const serverClockOffsetRef = useRef<number>(0);
   const [tickNowMs, setTickNowMs] = useState<number>(() => Date.now());
   const mountedRef = useRef(true);
+  const arrivalTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      if (arrivalTimerRef.current) {
+        window.clearTimeout(arrivalTimerRef.current);
+      }
     };
   }, []);
+
+  const triggerNewLetterArrival = useCallback(
+    (incomingUnopened: Array<{ id: string; paperStyle: JarPaperStyle }>, fallbackPhase: JarAnimationPhase) => {
+      if (incomingUnopened.length === 0) return;
+      const STORAGE_KEY = 'wulan-jar-seen-unopened-ids';
+      let seenIds: string[] = [];
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) seenIds = JSON.parse(raw) as string[];
+      } catch {
+        seenIds = [];
+      }
+      const seenSet = new Set(seenIds);
+      const newlyAvailable = incomingUnopened.filter((item) => !seenSet.has(item.id));
+      try {
+        window.localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(incomingUnopened.map((item) => item.id).slice(0, 120))
+        );
+      } catch {
+        // Ignore storage quota errors
+      }
+
+      if (newlyAvailable.length > 0 && !reducedMotion) {
+        const latest = newlyAvailable[newlyAvailable.length - 1];
+        setArrivingIds(newlyAvailable.map((item) => item.id));
+        setArrivingPaperStyle(latest.paperStyle);
+        setPhase('arriving');
+        if (arrivalTimerRef.current) window.clearTimeout(arrivalTimerRef.current);
+        arrivalTimerRef.current = window.setTimeout(() => {
+          if (!mountedRef.current) return;
+          setArrivingIds([]);
+          setPhase((current) => (current === 'arriving' ? fallbackPhase : current));
+        }, 1250);
+      }
+    },
+    [reducedMotion]
+  );
 
   const loadSnapshot = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -104,13 +151,17 @@ export function JarOfThoughts() {
       setTickNowMs(next.serverNowMs);
       setSnapshot(next);
 
-      if (next.cooldownStatus.isCoolingDown) {
-        setPhase('cooldown');
-      } else if (next.unopenedCount === 0) {
-        setPhase('empty');
-      } else {
-        setPhase('idle');
-      }
+      const fallbackPhase: JarAnimationPhase = next.cooldownStatus.isCoolingDown
+        ? 'cooldown'
+        : next.unopenedCount === 0
+          ? 'empty'
+          : 'idle';
+      setPhase(fallbackPhase);
+
+      const unopened = next.pool
+        .filter((item) => !item.opened)
+        .map((item) => ({ id: item.id, paperStyle: item.paperStyle }));
+      triggerNewLetterArrival(unopened, fallbackPhase);
     } catch (err) {
       if (!mountedRef.current) return;
       setErrorMsg(
@@ -122,11 +173,77 @@ export function JarOfThoughts() {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [triggerNewLetterArrival]);
 
   useEffect(() => {
     void loadSnapshot(false);
   }, [loadSnapshot]);
+
+  // Live listener for newly approved letters dropping into Wulan's jar in real time
+  useEffect(() => {
+    const q = query(collection(db, 'jarPool'), where('isApproved', '==', true));
+    let isInitial = true;
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        if (isInitial) {
+          isInitial = false;
+          return;
+        }
+        const livePool: JarPoolThought[] = snap.docs.map((d) => {
+          const raw = d.data();
+          return {
+            id: String(raw.id || d.id),
+            displayAuthor: String(raw.displayAuthor || 'Someone Special'),
+            isAnonymous: Boolean(raw.isAnonymous),
+            message: String(raw.message || ''),
+            paperStyle: (raw.paperStyle || 'ivory-linen') as JarPaperStyle,
+            isApproved: true,
+            opened: Boolean(raw.opened),
+            openedAt:
+              typeof raw.openedAt?.toDate === 'function'
+                ? raw.openedAt.toDate().toISOString()
+                : undefined,
+            sortSeed: typeof raw.sortSeed === 'number' ? raw.sortSeed : 0.5,
+            createdAt:
+              typeof raw.createdAt?.toDate === 'function'
+                ? raw.createdAt.toDate().toISOString()
+                : '',
+            updatedAt:
+              typeof raw.updatedAt?.toDate === 'function'
+                ? raw.updatedAt.toDate().toISOString()
+                : '',
+          };
+        });
+
+        setSnapshot((prev) => {
+          if (!prev) return prev;
+          const unopenedCount = livePool.filter((i) => !i.opened).length;
+          const openedKeepsakes = livePool
+            .filter((i) => i.opened)
+            .sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
+          return {
+            ...prev,
+            pool: livePool,
+            unopenedCount,
+            openedKeepsakes,
+          };
+        });
+
+        const liveUnopened = livePool
+          .filter((i) => !i.opened)
+          .map((i) => ({ id: i.id, paperStyle: i.paperStyle }));
+        setPhase((curPhase) => {
+          const fallback: JarAnimationPhase =
+            curPhase === 'cooldown' ? 'cooldown' : liveUnopened.length > 0 ? 'idle' : 'empty';
+          triggerNewLetterArrival(liveUnopened, fallback);
+          return curPhase;
+        });
+      },
+      () => {}
+    );
+    return () => unsub();
+  }, [triggerNewLetterArrival]);
 
   const liveCooldownStatus: JarCooldownStatus = useMemo(() => {
     const lastMs = snapshot?.cooldownState?.lastOpenedAtMs ?? null;
@@ -179,7 +296,10 @@ export function JarOfThoughts() {
     if (result.status === 'revealed') {
       if (!reducedMotion) {
         setPhase('floating');
-        await new Promise((r) => window.setTimeout(r, 680));
+        await new Promise((r) => window.setTimeout(r, 620));
+        if (!mountedRef.current) return;
+        setPhase('unfolding');
+        await new Promise((r) => window.setTimeout(r, 520));
         if (!mountedRef.current) return;
       }
 
@@ -348,6 +468,8 @@ export function JarOfThoughts() {
                   slips={jarSlips}
                   phase={phase}
                   activePaperStyle={revealedThought?.paperStyle}
+                  arrivingPaperStyle={arrivingPaperStyle}
+                  arrivingIds={arrivingIds}
                   reducedMotion={reducedMotion}
                 />
 

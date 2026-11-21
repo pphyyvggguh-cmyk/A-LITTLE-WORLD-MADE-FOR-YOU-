@@ -1,5 +1,6 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
+import { ImageOff } from 'lucide-react';
 import { PolaroidSize, TapeVariant } from '../data/memories';
 import { EASE_OUT_EXPO } from '../utils/animation';
 
@@ -48,6 +49,12 @@ export function Polaroid({
   footerExtra,
   className = '',
 }: PolaroidProps) {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [image]);
+
   const interactive = Boolean(onClick);
   const Wrapper = interactive ? motion.button : motion.div;
 
@@ -101,12 +108,20 @@ export function Polaroid({
       <div
         className="relative w-full aspect-[10/7] overflow-hidden bg-[#EAE0CF] border border-[#38271F]/10"
       >
-        <img
-          src={image}
-          alt={title}
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
+        {!imgError ? (
+          <img
+            src={image}
+            alt={title}
+            referrerPolicy="no-referrer"
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-br from-[#F4EBDD] to-[#E2D2BA] text-[#38271F]/70">
+            <ImageOff className="w-5 h-5 mb-1.5 opacity-60" />
+            <span className="font-serif text-xs font-medium line-clamp-2">{title}</span>
+          </div>
+        )}
 
         {/* Optional Vintage Postage Stamp */}
         {stamp && (

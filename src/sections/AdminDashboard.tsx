@@ -9,6 +9,8 @@ import {
   FolderOpen,
   Globe2,
   Heart,
+  Home,
+  Inbox,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -18,7 +20,9 @@ import {
 } from 'lucide-react';
 import { AdminAuthGate } from '../components/admin/AdminAuthGate';
 import { AdminOverview, AdminTabId } from '../components/admin/AdminOverview';
+import { ContributionsManager } from '../components/admin/ContributionsManager';
 import { HeartGalleryManager } from '../components/admin/HeartGalleryManager';
+import { HomepageManager } from '../components/admin/HomepageManager';
 import { JarManager } from '../components/admin/JarManager';
 import { LettersManager } from '../components/admin/LettersManager';
 import { MediaLibraryManager } from '../components/admin/MediaLibraryManager';
@@ -42,6 +46,7 @@ import {
 import { subscribeJarAdminData } from '../utils/jarApi';
 import { summarizeJarStats } from '../utils/jarOfThoughts';
 import { SiteContentPayload } from '../utils/adminContent';
+import { subscribeUnifiedContributions } from '../utils/unifiedContributionApi';
 import {
   ensureFirebaseBootstrapped,
   importJsonBackupToFirestore,
@@ -54,6 +59,8 @@ interface AdminDashboardProps {
 
 const ADMIN_TABS: { id: AdminTabId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'contributions', label: 'Kontribusi Terpadu', icon: Inbox },
+  { id: 'homepage', label: 'Beranda', icon: Home },
   { id: 'story', label: 'Our Story', icon: BookHeart },
   { id: 'world', label: 'Our World', icon: Globe2 },
   { id: 'letters', label: 'Letters', icon: Mail },
@@ -82,6 +89,7 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
   const vinylConfig = useContentStore((s) => s.vinylConfig);
   const vinylPlaylist = useContentStore((s) => s.vinylPlaylist);
   const heartGallery = useContentStore((s) => s.heartGallery);
+  const homepage = useContentStore((s) => s.homepage);
   const updatedAt = useContentStore((s) => s.updatedAt);
 
   const [loadingCloud, setLoadingCloud] = useState(false);
@@ -91,6 +99,11 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
   const [wishlistCount, setWishlistCount] = useState(0);
   const [postcardsCount, setPostcardsCount] = useState(0);
   const [jarStats, setJarStats] = useState({ total: 0, pending: 0, availableInPool: 0 });
+  const [contributionsStats, setContributionsStats] = useState({
+    total: 0,
+    pending: 0,
+    flagged: 0,
+  });
 
   const loadAdminCloudData = useCallback(async () => {
     if (!user || !isAdmin) return;
@@ -149,10 +162,31 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
       },
       () => {}
     );
+    const unsubContrib = subscribeUnifiedContributions(
+      (bundles) => {
+        let pending = 0;
+        let flagged = 0;
+        for (const b of bundles) {
+          if (b.jarThought?.status === 'pending' || b.voiceSubmission?.status === 'pending') {
+            pending += 1;
+          }
+          if (
+            b.batch.screeningStatus === 'flagged' ||
+            b.jarThought?.screeningStatus === 'flagged' ||
+            b.voiceSubmission?.screeningStatus === 'flagged'
+          ) {
+            flagged += 1;
+          }
+        }
+        setContributionsStats({ total: bundles.length, pending, flagged });
+      },
+      () => {}
+    );
     return () => {
       unsubWish();
       unsubPostcards();
       unsubJar();
+      unsubContrib();
     };
   }, [authReady, isAdmin, user?.email]);
 
@@ -244,6 +278,7 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
     vinylConfig,
     vinylPlaylist,
     heartGallery,
+    homepage,
     updatedAt,
   };
 
@@ -320,9 +355,21 @@ export function AdminDashboard({ onExitToPublic }: AdminDashboardProps) {
             wishlistCount={wishlistCount}
             postcardsCount={postcardsCount}
             jarStats={jarStats}
+            contributionsStats={contributionsStats}
             onSelectTab={setActiveTab}
             onOpenPublicSite={onExitToPublic}
             onImportBackupJson={handleImportBackup}
+          />
+        )}
+
+        {activeTab === 'contributions' && <ContributionsManager />}
+
+        {activeTab === 'homepage' && (
+          <HomepageManager
+            homepage={homepage}
+            mediaAssets={mediaAssets}
+            onSaved={handleSavedContent}
+            onMediaRefresh={refreshMedia}
           />
         )}
 

@@ -14,6 +14,7 @@ import {
 import { uploadWishlistPhoto } from '../../utils/adminApi';
 import { validateWishlistFormInput } from '../../utils/wishlist';
 import { formatSafeUiError } from '../../utils/safeError';
+import { CloudMediaImg } from '../CloudMediaImg';
 
 interface WishFormModalProps {
   mode: 'create' | 'edit';
@@ -360,7 +361,7 @@ export function WishFormModal({
                     key={`${url}-${idx}`}
                     className="relative group aspect-square rounded-lg overflow-hidden border border-[#38271F]/15 bg-[#EAE0CF]"
                   >
-                    <img
+                    <CloudMediaImg
                       src={url}
                       alt={`Foto wishlist ${idx + 1}`}
                       referrerPolicy="no-referrer"

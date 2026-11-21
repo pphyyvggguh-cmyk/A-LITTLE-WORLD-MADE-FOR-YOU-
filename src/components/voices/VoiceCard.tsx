@@ -4,7 +4,8 @@ import { Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { VOICE_FLOWER_OPTIONS, VoiceOfLoveEntry } from '../../data/voices';
 import { formatAudioTime } from '../../utils/adminContent';
 import { EASE_OUT_EXPO } from '../../utils/animation';
-import { VoiceFlowerSVG } from './VoiceFlowerSVG';
+import { clampFlowerQuantity } from '../../utils/unifiedContribution';
+import { VoiceBouquetDisplay } from './VoiceBouquetDisplay';
 
 interface VoiceCardProps {
   entry: VoiceOfLoveEntry;
@@ -159,18 +160,14 @@ export function VoiceCard({
         }}
       />
 
-      {/* Top row: Flower illustration + Optional Photo + Name */}
+      {/* Top row: Flower bouquet illustration + Optional Photo + Name */}
       <div className="flex items-center gap-3.5">
-        <div
-          className="relative w-13 h-13 sm:w-16 sm:h-16 shrink-0 rounded-xl border border-[#38271F]/12 flex items-center justify-center"
-          style={{ backgroundColor: `${flowerMeta.accentColor}20` }}
-        >
-          <VoiceFlowerSVG
-            flowerType={entry.flowerType}
-            isPlaying={isPlaying}
-            className="w-11 h-11 sm:w-13 sm:h-13"
-          />
-        </div>
+        <VoiceBouquetDisplay
+          flowerType={entry.flowerType}
+          quantity={entry.flowerQuantity ?? 1}
+          isPlaying={isPlaying}
+          size="md"
+        />
 
         {entry.photoUrl && (
           <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full overflow-hidden border-2 border-[#F4EBDD] shadow-sm bg-[#EAE0CF]">
@@ -184,7 +181,11 @@ export function VoiceCard({
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="editorial-kicker text-[10px]">{flowerMeta.label}</p>
+          <p className="editorial-kicker text-[10px]">
+            {clampFlowerQuantity(entry.flowerQuantity ?? 1) > 1
+              ? `${clampFlowerQuantity(entry.flowerQuantity ?? 1)} × ${flowerMeta.label}`
+              : flowerMeta.label}
+          </p>
           <h2 className="mt-0.5 font-serif text-lg sm:text-xl font-semibold text-[#38271F] leading-snug break-words">
             {entry.name}
           </h2>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import {
   BookPolaroidItem,
@@ -40,6 +40,10 @@ export function StoryPolaroid({
   className = '',
 }: StoryPolaroidProps) {
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [item.image]);
 
   return (
     <button
